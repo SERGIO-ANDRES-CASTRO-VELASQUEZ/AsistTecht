@@ -22,7 +22,9 @@ import { mensajeError } from '../core/errores';
               <h2>{{ grupo.nombre }}</h2>
               <p>{{ grupo.estudiantes }} estudiantes</p>
             </div>
-            <button type="button" class="texto" (click)="borrar(grupo)">Quitar</button>
+            @if (grupo.propio) {
+              <button type="button" class="texto" (click)="borrar(grupo)">Quitar</button>
+            }
           </header>
           <fieldset>
             <legend>Materias de este grupo</legend>

@@ -19,7 +19,8 @@ public class EstudiantesController : ControllerBase
     public async Task<IActionResult> Listar([FromQuery] int? grupoId)
     {
         var id = ProfesorId();
-        var query = _db.Estudiantes.Where(e => e.ProfesorId == id);
+        var query = _db.Estudiantes.Where(e =>
+            e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)));
         if (grupoId is not null)
             query = query.Where(e => e.GrupoId == grupoId);
 
@@ -31,7 +32,10 @@ public class EstudiantesController : ControllerBase
                 e.Nombre,
                 e.Documento,
                 e.GrupoId,
-                grupo = e.Grupo != null ? e.Grupo.Nombre : null
+                grupo = e.Grupo != null ? e.Grupo.Nombre : null,
+                tieneFoto = e.Foto != null,
+                tieneRostro = e.Rostros.Any(r => r.Pose == "frente"),
+                carnet = e.Foto != null && e.Rostros.Any(r => r.Pose == "frente")
             })
             .ToListAsync();
         return Ok(lista);
@@ -89,6 +93,85 @@ public class EstudiantesController : ControllerBase
         return Ok(new { mensaje = "Estudiante actualizado." });
     }
 
+    [HttpPut("{estudianteId:int}/foto")]
+    public async Task<IActionResult> GuardarFoto(int estudianteId, [FromBody] FotoRequest body)
+    {
+        var estudiante = await Visible(estudianteId);
+        if (estudiante is null)
+            return NotFound(new { mensaje = "No se encontró el estudiante." });
+        try
+        {
+            var foto = RostroUtil.FotoDesdeBase64(body.Imagen);
+            estudiante.Foto = foto;
+            estudiante.FotoTipo = RostroUtil.TipoDe(foto);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { mensaje = "Foto guardada." });
+    }
+
+    [HttpPut("{estudianteId:int}/rostro")]
+    public async Task<IActionResult> GuardarRostro(int estudianteId, [FromBody] RostroRequest body)
+    {
+        var estudiante = await Visible(estudianteId);
+        if (estudiante is null)
+            return NotFound(new { mensaje = "No se encontró el estudiante." });
+        return await GuardarMuestras(estudiante, body.Muestras);
+    }
+
+    [HttpGet("{estudianteId:int}/carnet")]
+    public async Task<IActionResult> Carnet(int estudianteId)
+    {
+        var estudiante = await _db.Estudiantes
+            .Include(e => e.Grupo)
+            .Include(e => e.Rostros)
+            .FirstOrDefaultAsync(e => e.Id == estudianteId);
+        if (estudiante is null || await Visible(estudianteId) is null)
+            return NotFound(new { mensaje = "No se encontró el estudiante." });
+        if (estudiante.Foto is null || estudiante.Rostros.All(r => r.Pose != "frente"))
+            return BadRequest(new { mensaje = "El carnet se genera cuando hay foto y el rostro de frente." });
+        return File(CarnetDibujo.Pintar(estudiante), "image/png", $"carnet-{estudiante.Documento}.png");
+    }
+
+    private async Task<IActionResult> GuardarMuestras(Estudiante estudiante, List<MuestraRostro>? muestras)
+    {
+        var lista = muestras ?? [];
+        if (lista.Count != RostroUtil.Poses.Length || lista.Select(m => m.Pose).Distinct().Count() != RostroUtil.Poses.Length)
+            return BadRequest(new { mensaje = "Hacen falta las cinco poses de la cara." });
+
+        var anteriores = await _db.Rostros.Where(r => r.EstudianteId == estudiante.Id).ToListAsync();
+        _db.Rostros.RemoveRange(anteriores);
+        foreach (var muestra in lista)
+        {
+            var pose = (muestra.Pose ?? "").Trim().ToLowerInvariant();
+            if (!RostroUtil.PoseValida(pose))
+                return BadRequest(new { mensaje = "Hay una pose que no corresponde." });
+            string vector;
+            try
+            {
+                vector = RostroUtil.Guardar(muestra.Vector ?? []);
+            }
+            catch (ArgumentException)
+            {
+                return BadRequest(new { mensaje = "Una de las lecturas de la cara no es válida." });
+            }
+            _db.Rostros.Add(new Rostro { EstudianteId = estudiante.Id, Pose = pose, Vector = vector });
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { mensaje = "Rostro guardado." });
+    }
+
+    private async Task<Estudiante?> Visible(int estudianteId)
+    {
+        var id = ProfesorId();
+        return await _db.Estudiantes.FirstOrDefaultAsync(e =>
+            e.Id == estudianteId && e.Grupo != null &&
+            (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)));
+    }
+
     private int ProfesorId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     private async Task<bool> GrupoPropio(int? grupoId)
@@ -103,3 +186,6 @@ public class EstudiantesController : ControllerBase
 
 public record EstudianteRequest(string? Nombre, string? Documento, string? Password, int? GrupoId);
 public record EstudianteUpdate(string? Nombre, int? GrupoId, string? Password);
+public record FotoRequest(string? Imagen);
+public record MuestraRostro(string? Pose, float[]? Vector);
+public record RostroRequest(List<MuestraRostro>? Muestras);

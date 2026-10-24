@@ -18,8 +18,9 @@ import { ApiService } from '../core/api.service';
       <ol class="pasos">
         <li><a routerLink="/profesor/materias">Crea la materia</a></li>
         <li><a routerLink="/profesor/grupos">Crea el grupo y asígnale materias</a></li>
-        <li><a routerLink="/profesor/estudiantes">Registra a cada estudiante</a> para que descargue su QR</li>
-        <li><a routerLink="/profesor/clase">Abre la clase</a> y deja la cámara viendo los códigos</li>
+        <li><a routerLink="/profesor/estudiantes">Registra a cada estudiante</a> para que descargue su QR y guarde su rostro</li>
+        <li><a routerLink="/profesor/clase">Abre la clase</a> y deja la cámara viendo los códigos o las caras</li>
+        <li><a routerLink="/profesor/planilla">Revisa la planilla</a> si hay que anotar a mano o cargar notas</li>
       </ol>
     </section>
   `

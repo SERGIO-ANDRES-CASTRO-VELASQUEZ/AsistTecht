@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Estudiante, Grupo, Marca, Materia, SesionDetalle, SesionResumen } from './models';
+import { Estudiante, Grupo, Marca, Materia, MateriaAcademica, PlanillaAsistencia, PlanillaNotas, SesionDetalle, SesionResumen } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -68,7 +68,74 @@ export class ApiService {
   }
 
   perfil() {
-    return this.http.get<{ nombre: string; rol: string; usuario?: string; documento?: string; grupo?: string | null }>('/api/cuenta');
+    return this.http.get<{
+      nombre: string;
+      rol: string;
+      usuario?: string;
+      documento?: string;
+      grupo?: string | null;
+      carnet?: boolean;
+    }>('/api/cuenta');
+  }
+
+  academico() {
+    return this.http.get<{ materias: MateriaAcademica[] }>('/api/cuenta/academico');
+  }
+
+  guardarFotoPropia(imagen: string) {
+    return this.http.put('/api/cuenta/foto', { imagen });
+  }
+
+  guardarRostroPropio(muestras: Array<{ pose: string; vector: number[] }>) {
+    return this.http.put('/api/cuenta/rostro', { muestras });
+  }
+
+  carnetPropio() {
+    return this.http.get('/api/cuenta/carnet', { responseType: 'blob' });
+  }
+
+  guardarFoto(estudianteId: number, imagen: string) {
+    return this.http.put(`/api/estudiantes/${estudianteId}/foto`, { imagen });
+  }
+
+  guardarRostro(estudianteId: number, muestras: Array<{ pose: string; vector: number[] }>) {
+    return this.http.put(`/api/estudiantes/${estudianteId}/rostro`, { muestras });
+  }
+
+  carnetEstudiante(estudianteId: number) {
+    return this.http.get(`/api/estudiantes/${estudianteId}/carnet`, { responseType: 'blob' });
+  }
+
+  planillaAsistencia(materiaId: number, grupoId: number) {
+    return this.http.get<PlanillaAsistencia>(`/api/planilla/asistencia?materiaId=${materiaId}&grupoId=${grupoId}`);
+  }
+
+  celdaAsistencia(body: { materiaId: number; grupoId: number; fecha: string; estudianteId: number; presente: boolean }) {
+    return this.http.put('/api/planilla/asistencia', body);
+  }
+
+  planillaNotas(materiaId: number, grupoId: number) {
+    return this.http.get<PlanillaNotas>(`/api/planilla/notas?materiaId=${materiaId}&grupoId=${grupoId}`);
+  }
+
+  crearColumna(materiaId: number, grupoId: number, nombre: string) {
+    return this.http.post('/api/planilla/notas/columnas', { materiaId, grupoId, nombre });
+  }
+
+  guardarNota(columnaId: number, estudianteId: number, valor: number | null) {
+    return this.http.put('/api/planilla/notas', { columnaId, estudianteId, valor });
+  }
+
+  profesores() {
+    return this.http.get<Array<{ id: number; nombre: string; usuario: string }>>('/api/profesores');
+  }
+
+  crearProfesor(body: { nombre: string; usuario: string; password: string }) {
+    return this.http.post('/api/profesores', body);
+  }
+
+  reconocer(sesionId: number, vector: number[], confirmar: boolean, ancho: number) {
+    return this.http.post<Marca>(`/api/sesiones/${sesionId}/reconocer`, { vector, confirmar, ancho });
   }
 
   qr() {

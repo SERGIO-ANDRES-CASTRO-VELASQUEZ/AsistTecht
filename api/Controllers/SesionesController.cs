@@ -41,9 +41,9 @@ public class SesionesController : ControllerBase
     {
         var profesorId = ProfesorId();
         var materia = await _db.Materias.FirstOrDefaultAsync(m => m.Id == body.MateriaId && m.ProfesorId == profesorId);
-        var grupo = await _db.Grupos.FirstOrDefaultAsync(g => g.Id == body.GrupoId && g.ProfesorId == profesorId);
+        var grupo = await _db.Grupos.FirstOrDefaultAsync(g => g.Id == body.GrupoId);
         if (materia is null || grupo is null)
-            return BadRequest(new { mensaje = "Elige una materia y un grupo tuyos." });
+            return BadRequest(new { mensaje = "Elige una materia y un grupo." });
 
         var vinculada = await _db.MateriaGrupos.AnyAsync(x => x.MateriaId == materia.Id && x.GrupoId == grupo.Id);
         if (!vinculada)
@@ -102,7 +102,8 @@ public class SesionesController : ControllerBase
         {
             SesionId = sesion.Id,
             EstudianteId = estudiante.Id,
-            MarcadaEn = DateTime.UtcNow
+            MarcadaEn = DateTime.UtcNow,
+            Origen = "Qr"
         });
 
         try
@@ -115,6 +116,70 @@ public class SesionesController : ControllerBase
         }
 
         return Ok(new { estado = EstadoMarca.Anotado, nombre = estudiante.Nombre });
+    }
+
+    [HttpPost("{sesionId:int}/reconocer")]
+    public async Task<IActionResult> Reconocer(int sesionId, [FromBody] ReconocerRequest body)
+    {
+        var sesion = await _db.Sesiones
+            .FirstOrDefaultAsync(s => s.Id == sesionId && s.ProfesorId == ProfesorId());
+        if (sesion is null)
+            return NotFound(new { mensaje = "No se encontró la clase." });
+
+        float[] vector;
+        try
+        {
+            vector = body.Vector ?? [];
+            RostroUtil.Guardar(vector);
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { mensaje = "La lectura de la cara no es válida." });
+        }
+
+        if (body.Ancho < 0.08)
+            return Ok(new { estado = EstadoMarca.NoEncontrado, nombre = (string?)null, estudianteId = (int?)null, seguro = false });
+
+        var muestras = await _db.Rostros
+            .Where(r => r.Estudiante!.GrupoId == sesion.GrupoId)
+            .Select(r => new { r.EstudianteId, Nombre = r.Estudiante!.Nombre, r.Vector })
+            .ToListAsync();
+        var mejor = RostroUtil.Mejor(vector, muestras.Select(m => (m.EstudianteId, m.Nombre, m.Vector)));
+        if (mejor is null)
+            return Ok(new { estado = EstadoMarca.NoEncontrado, nombre = (string?)null, estudianteId = (int?)null, seguro = false });
+
+        if (!body.Confirmar)
+            return Ok(new
+            {
+                estado = "Candidato",
+                nombre = mejor.Value.Nombre,
+                estudianteId = (int?)mejor.Value.EstudianteId,
+                seguro = true,
+                distancia = Math.Round(mejor.Value.Distancia, 3)
+            });
+
+        var ya = await _db.Asistencias
+            .FirstOrDefaultAsync(a => a.SesionId == sesion.Id && a.EstudianteId == mejor.Value.EstudianteId);
+        if (ya is not null)
+            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = mejor.Value.Nombre, estudianteId = (int?)mejor.Value.EstudianteId, seguro = true });
+
+        _db.Asistencias.Add(new Asistencia
+        {
+            SesionId = sesion.Id,
+            EstudianteId = mejor.Value.EstudianteId,
+            MarcadaEn = DateTime.UtcNow,
+            Origen = "Rostro"
+        });
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = mejor.Value.Nombre, estudianteId = (int?)mejor.Value.EstudianteId, seguro = true });
+        }
+
+        return Ok(new { estado = EstadoMarca.Anotado, nombre = mejor.Value.Nombre, estudianteId = (int?)mejor.Value.EstudianteId, seguro = true });
     }
 
     private async Task<object?> Detalle(int sesionId, int profesorId)
@@ -160,3 +225,4 @@ public class SesionesController : ControllerBase
 
 public record AbrirSesionRequest(int MateriaId, int GrupoId);
 public record MarcarRequest(string? Token);
+public record ReconocerRequest(float[]? Vector, bool Confirmar, double Ancho);

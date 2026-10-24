@@ -1,6 +1,8 @@
+export type Rol = 'Director' | 'Profesor' | 'Estudiante';
+
 export interface SesionUsuario {
   token: string;
-  rol: 'Profesor' | 'Estudiante';
+  rol: Rol;
   nombre: string;
   usuario: string;
 }
@@ -14,6 +16,7 @@ export interface Materia {
 export interface Grupo {
   id: number;
   nombre: string;
+  propio: boolean;
   estudiantes: number;
   materiaIds: number[];
   materias: string[];
@@ -25,6 +28,9 @@ export interface Estudiante {
   documento: string;
   grupoId: number | null;
   grupo: string | null;
+  tieneFoto: boolean;
+  tieneRostro: boolean;
+  carnet: boolean;
 }
 
 export interface EstudianteClase {
@@ -60,4 +66,23 @@ export type EstadoMarca = 'Anotado' | 'YaRegistrado' | 'NoPertenece' | 'NoEncont
 export interface Marca {
   estado: Exclude<EstadoMarca, 'Consultando'>;
   nombre: string | null;
+  estudianteId?: number | null;
+  seguro?: boolean;
+}
+
+export interface PlanillaAsistencia {
+  estudiantes: Array<{ id: number; nombre: string }>;
+  fechas: Array<{ id: number; fecha: string; presentes: number[] }>;
+}
+
+export interface PlanillaNotas {
+  estudiantes: Array<{ id: number; nombre: string }>;
+  columnas: Array<{ id: number; nombre: string; notas: Array<{ estudianteId: number; valor: number }> }>;
+}
+
+export interface MateriaAcademica {
+  materia: string;
+  ausencias: number;
+  columnas: Array<{ nombre: string; valor: number | null }>;
+  fechas: Array<{ fecha: string; presente: boolean }>;
 }

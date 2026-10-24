@@ -4,6 +4,17 @@ public static class DbSeeder
 {
     public static void Seed(AppDb db)
     {
+        if (!db.Directores.Any())
+        {
+            db.Directores.Add(new Director
+            {
+                Nombre = "Dirección",
+                Usuario = "director",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("AsisTecht2026")
+            });
+            db.SaveChanges();
+        }
+
         if (db.Profesores.Any())
             return;
 

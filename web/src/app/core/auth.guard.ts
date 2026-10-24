@@ -13,3 +13,9 @@ export const estudianteGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.rol() === 'Estudiante' ? true : router.createUrlTree(['/ingreso']);
 };
+
+export const directorGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.rol() === 'Director' ? true : router.createUrlTree(['/ingreso']);
+};

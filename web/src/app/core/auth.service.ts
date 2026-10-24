@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
-import { SesionUsuario } from './models';
+import { Rol, SesionUsuario } from './models';
 
 const CLAVE = 'asisqr-sesion';
 
@@ -11,11 +11,11 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  rol(): SesionUsuario['rol'] | null {
+  rol(): Rol | null {
     return this.sesion()?.rol ?? null;
   }
 
-  login(usuario: string, password: string, rol: 'Profesor' | 'Estudiante') {
+  login(usuario: string, password: string, rol: Rol) {
     return this.http
       .post<SesionUsuario>('/api/auth/login', { usuario, password, rol })
       .pipe(tap((sesion) => this.guardar(sesion)));

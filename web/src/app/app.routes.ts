@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { profesorGuard, estudianteGuard } from './core/auth.guard';
+import { profesorGuard, estudianteGuard, directorGuard } from './core/auth.guard';
 import { LoginComponent } from './pages/login.component';
 import { InicioComponent } from './pages/inicio.component';
 import { MateriasComponent } from './pages/materias.component';
@@ -10,6 +10,10 @@ import { HistorialComponent } from './pages/historial.component';
 import { QrComponent } from './pages/qr.component';
 import { ClaveComponent } from './pages/clave.component';
 import { ShellComponent } from './pages/shell.component';
+import { PlanillaComponent } from './pages/planilla.component';
+import { RostroComponent } from './pages/rostro.component';
+import { AcademicoComponent } from './pages/academico.component';
+import { DirectorComponent } from './pages/director.component';
 
 export const routes: Routes = [
   { path: 'ingreso', component: LoginComponent },
@@ -23,7 +27,18 @@ export const routes: Routes = [
       { path: 'grupos', component: GruposComponent },
       { path: 'estudiantes', component: EstudiantesComponent },
       { path: 'clase', component: ClaseComponent },
+      { path: 'planilla', component: PlanillaComponent },
       { path: 'historial', component: HistorialComponent },
+      { path: 'estudiantes/:id/rostro', component: RostroComponent },
+      { path: 'clave', component: ClaveComponent }
+    ]
+  },
+  {
+    path: 'director',
+    component: ShellComponent,
+    canActivate: [directorGuard],
+    children: [
+      { path: '', component: DirectorComponent },
       { path: 'clave', component: ClaveComponent }
     ]
   },
@@ -33,6 +48,8 @@ export const routes: Routes = [
     canActivate: [estudianteGuard],
     children: [
       { path: '', component: QrComponent },
+      { path: 'notas', component: AcademicoComponent },
+      { path: 'rostro', component: RostroComponent },
       { path: 'clave', component: ClaveComponent }
     ]
   },

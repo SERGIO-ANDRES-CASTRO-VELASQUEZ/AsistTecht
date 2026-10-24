@@ -6,8 +6,12 @@ public class AppDb : DbContext
 {
     public AppDb(DbContextOptions<AppDb> options) : base(options) { }
 
+    public DbSet<Director> Directores => Set<Director>();
     public DbSet<Profesor> Profesores => Set<Profesor>();
     public DbSet<Estudiante> Estudiantes => Set<Estudiante>();
+    public DbSet<Rostro> Rostros => Set<Rostro>();
+    public DbSet<NotaColumna> NotaColumnas => Set<NotaColumna>();
+    public DbSet<Nota> Notas => Set<Nota>();
     public DbSet<Materia> Materias => Set<Materia>();
     public DbSet<Grupo> Grupos => Set<Grupo>();
     public DbSet<MateriaGrupo> MateriaGrupos => Set<MateriaGrupo>();
@@ -76,5 +80,35 @@ public class AppDb : DbContext
             .WithMany()
             .HasForeignKey(a => a.EstudianteId)
             .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Asistencia>().Property(a => a.Origen).HasMaxLength(20).HasDefaultValue("Qr");
+
+        modelBuilder.Entity<Director>().HasIndex(d => d.Usuario).IsUnique();
+        modelBuilder.Entity<Director>().Property(d => d.Nombre).HasMaxLength(120);
+        modelBuilder.Entity<Director>().Property(d => d.Usuario).HasMaxLength(40);
+
+        modelBuilder.Entity<Rostro>()
+            .HasIndex(r => new { r.EstudianteId, r.Pose }).IsUnique();
+        modelBuilder.Entity<Rostro>().Property(r => r.Pose).HasMaxLength(20);
+        modelBuilder.Entity<Rostro>()
+            .HasOne(r => r.Estudiante)
+            .WithMany(e => e.Rostros)
+            .HasForeignKey(r => r.EstudianteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<NotaColumna>().Property(c => c.Nombre).HasMaxLength(80);
+        modelBuilder.Entity<NotaColumna>()
+            .HasIndex(c => new { c.MateriaId, c.GrupoId, c.Nombre }).IsUnique();
+        modelBuilder.Entity<NotaColumna>()
+            .HasOne(c => c.Materia).WithMany().HasForeignKey(c => c.MateriaId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<NotaColumna>()
+            .HasOne(c => c.Grupo).WithMany().HasForeignKey(c => c.GrupoId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Nota>()
+            .HasIndex(n => new { n.ColumnaId, n.EstudianteId }).IsUnique();
+        modelBuilder.Entity<Nota>().Property(n => n.Valor).HasPrecision(5, 2);
+        modelBuilder.Entity<Nota>()
+            .HasOne(n => n.Columna).WithMany(c => c.Notas).HasForeignKey(n => n.ColumnaId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Nota>()
+            .HasOne(n => n.Estudiante).WithMany().HasForeignKey(n => n.EstudianteId).OnDelete(DeleteBehavior.Cascade);
     }
 }

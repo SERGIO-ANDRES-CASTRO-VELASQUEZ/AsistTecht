@@ -1,12 +1,13 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../core/api.service';
 import { Estudiante, Grupo } from '../core/models';
 import { mensajeError } from '../core/errores';
 
 @Component({
   selector: 'app-estudiantes',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <section class="pagina">
       <h1>Estudiantes</h1>
@@ -42,6 +43,12 @@ import { mensajeError } from '../core/errores';
             <div>
               <strong>{{ estudiante.nombre }}</strong>
               <span>{{ estudiante.documento }} · {{ estudiante.grupo || 'Sin grupo' }}</span>
+            </div>
+            <div class="acciones">
+              <a class="enlace" [routerLink]="['/profesor/estudiantes', estudiante.id, 'rostro']">Rostro</a>
+              @if (estudiante.carnet) {
+                <button type="button" class="texto" (click)="carnet(estudiante.id, estudiante.documento)">Carnet</button>
+              }
             </div>
           </li>
         } @empty {
@@ -94,4 +101,20 @@ export class EstudiantesComponent implements OnInit {
       error: (error: unknown) => this.aviso.set(mensajeError(error))
     });
   }
+
+  carnet(id: number, documento: string): void {
+    this.api.carnetEstudiante(id).subscribe({
+      next: (blob) => descargar(blob, `carnet-${documento}.png`),
+      error: (error: unknown) => this.aviso.set(mensajeError(error))
+    });
+  }
+}
+
+function descargar(blob: Blob, nombre: string): void {
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
 }

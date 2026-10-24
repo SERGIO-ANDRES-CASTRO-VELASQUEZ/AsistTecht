@@ -43,6 +43,16 @@ public class AuthController : ControllerBase
             return Ok(Token(profesor.Id, profesor.Nombre, "Profesor", profesor.Usuario));
         }
 
+        if (rol.Equals("Director", StringComparison.OrdinalIgnoreCase))
+        {
+            var director = await _db.Directores
+                .FirstOrDefaultAsync(d => d.Usuario == usuario.ToLowerInvariant());
+            if (director is null || !BCrypt.Net.BCrypt.Verify(password, director.PasswordHash))
+                return Unauthorized(new { mensaje = "Usuario o clave incorrectos." });
+
+            return Ok(Token(director.Id, director.Nombre, "Director", director.Usuario));
+        }
+
         if (rol.Equals("Estudiante", StringComparison.OrdinalIgnoreCase))
         {
             var estudiante = await _db.Estudiantes

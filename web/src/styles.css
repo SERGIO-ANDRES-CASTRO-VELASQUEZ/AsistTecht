@@ -49,14 +49,14 @@ button { cursor: pointer; }
 }
 .bloque { margin-top: 1rem; }
 
-.segmento { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 1rem 0; }
+.segmento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; margin: 1rem 0; }
 .segmento button, .acciones button, .texto {
   border: 1px solid var(--line);
   background: transparent;
   border-radius: 999px;
   padding: 0.45rem 0.8rem;
 }
-.segmento button.activo { background: var(--green); color: white; border-color: var(--green); }
+.segmento button.activo, .acciones button.activo { background: var(--green); color: white; border-color: var(--green); }
 
 label { display: grid; gap: 0.3rem; font-size: 0.92rem; }
 input, select {
@@ -172,7 +172,17 @@ fieldset { border: 1px dashed var(--line); border-radius: 12px; margin: 0.8rem 0
 .burbuja[data-estado="NoPertenece"],
 .burbuja[data-estado="NoEncontrado"] { background: var(--red); }
 .lista-clase span[data-estado="Anotado"] { color: var(--green); font-weight: 650; }
-.qr { width: min(18rem, 80vw); background: white; padding: 0.8rem; border-radius: 16px; border: 1px solid var(--line); }
+.qr, .carnet { width: min(22rem, 88vw); background: white; padding: 0.8rem; border-radius: 16px; border: 1px solid var(--line); }
+.planilla { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; }
+.planilla th, .planilla td { border: 1px solid var(--line); padding: 0.35rem 0.45rem; text-align: center; background: white; }
+.planilla th:first-child, .planilla td:first-child { text-align: left; min-width: 10rem; }
+.planilla button.celda { border: 0; background: transparent; width: 100%; min-width: 4.5rem; border-radius: 8px; padding: 0.35rem; }
+.planilla button.celda[data-presente="true"] { background: var(--green-soft); color: var(--green); font-weight: 650; }
+.planilla input.nota { width: 4.2rem; text-align: center; padding: 0.35rem; }
+.desborde { overflow-x: auto; }
+.poses { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin: 0.8rem 0; }
+.poses button { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 0.45rem 0.8rem; }
+.poses button.activo { background: var(--green); color: white; border-color: var(--green); }
 
 @media (max-width: 800px) {
   .escena { grid-template-columns: 1fr; }

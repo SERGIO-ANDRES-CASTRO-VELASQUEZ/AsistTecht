@@ -24,7 +24,8 @@ public class CatalogoController : ControllerBase
         {
             materias = await _db.Materias.CountAsync(m => m.ProfesorId == id),
             grupos = await _db.Grupos.CountAsync(g => g.ProfesorId == id),
-            estudiantes = await _db.Estudiantes.CountAsync(e => e.ProfesorId == id),
+            estudiantes = await _db.Estudiantes.CountAsync(e =>
+                e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id))),
             sesionesHoy = await _db.Sesiones.CountAsync(s => s.ProfesorId == id && s.Fecha == hoy)
         });
     }
@@ -81,14 +82,14 @@ public class CatalogoController : ControllerBase
     {
         var id = ProfesorId();
         var grupos = await _db.Grupos
-            .Where(g => g.ProfesorId == id)
             .OrderBy(g => g.Nombre)
             .Select(g => new
             {
                 g.Id,
                 g.Nombre,
+                propio = g.ProfesorId == id,
                 estudiantes = g.Estudiantes.Count,
-                materiaIds = g.Materias.Select(m => m.MateriaId).ToList(),
+                materiaIds = g.Materias.Where(m => m.Materia!.ProfesorId == id).Select(m => m.MateriaId).ToList(),
                 materias = g.Materias.Select(m => m.Materia!.Nombre).OrderBy(n => n).ToList()
             })
             .ToListAsync();
@@ -115,7 +116,7 @@ public class CatalogoController : ControllerBase
     [HttpPut("grupos/{grupoId:int}/materias")]
     public async Task<IActionResult> AsignarMaterias(int grupoId, [FromBody] MateriasGrupoRequest body)
     {
-        var grupo = await GrupoPropio(grupoId);
+        var grupo = await _db.Grupos.FirstOrDefaultAsync(g => g.Id == grupoId);
         if (grupo is null) return NotFound(new { mensaje = "No se encontró el grupo." });
 
         var ids = (body.MateriaIds ?? []).Distinct().ToList();
@@ -126,7 +127,9 @@ public class CatalogoController : ControllerBase
         if (propias.Count != ids.Count)
             return BadRequest(new { mensaje = "Hay una materia que no te pertenece." });
 
-        var actuales = await _db.MateriaGrupos.Where(x => x.GrupoId == grupoId).ToListAsync();
+        var actuales = await _db.MateriaGrupos
+            .Where(x => x.GrupoId == grupoId && x.Materia!.ProfesorId == ProfesorId())
+            .ToListAsync();
         _db.MateriaGrupos.RemoveRange(actuales);
         foreach (var materiaId in propias)
             _db.MateriaGrupos.Add(new MateriaGrupo { GrupoId = grupoId, MateriaId = materiaId });

@@ -33,6 +33,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Profesor", policy => policy.RequireRole("Profesor"));
     options.AddPolicy("Estudiante", policy => policy.RequireRole("Estudiante"));
+    options.AddPolicy("Director", policy => policy.RequireRole("Director"));
 });
 
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -51,6 +52,7 @@ using (var scope = app.Services.CreateScope())
         try
         {
             db.Database.EnsureCreated();
+            Esquema.Aplicar(db);
             DbSeeder.Seed(db);
             break;
         }
@@ -65,6 +67,6 @@ using (var scope = app.Services.CreateScope())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapGet("/api/salud", () => Results.Ok(new { estado = "ok", servicio = "AsisQR" }));
+app.MapGet("/api/salud", () => Results.Ok(new { estado = "ok", servicio = "AsisTecht" }));
 
 app.Run();
