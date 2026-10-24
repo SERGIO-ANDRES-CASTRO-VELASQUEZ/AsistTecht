@@ -1,0 +1,12 @@
+{
+	auto_https disable_redirects
+}
+
+:80 {
+	reverse_proxy web:80
+}
+
+:443 {
+	tls internal
+	reverse_proxy web:80
+}
