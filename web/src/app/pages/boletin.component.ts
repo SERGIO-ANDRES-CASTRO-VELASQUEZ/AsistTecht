@@ -1,18 +1,33 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
-import { BoletinOficial, Estudiante } from '../core/models';
+import { BoletinOficial } from '../core/models';
 import { mensajeError } from '../core/errores';
+
+interface EstudianteResumen {
+  id: number;
+  nombre: string;
+  documento: string;
+  grupoId: number;
+  grupo: string;
+  acudiente: string;
+  activo: boolean;
+}
+
+interface GrupoItem {
+  id: number;
+  nombre: string;
+}
 
 @Component({
   selector: 'app-boletin',
   imports: [CommonModule, FormsModule],
   template: `
     <section class="pagina">
-      <!-- Barra Superior de Acciones (Oculta en Impresión) -->
+      <!-- Barra Superior de Acciones y Controles (Oculta en Impresión) -->
       <div class="entre no-print" style="margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
         <div>
           <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
@@ -24,40 +39,111 @@ import { mensajeError } from '../core/errores';
         </div>
 
         <div class="acciones" style="display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;">
-          @if (puedeSeleccionarEstudiante() && listaEstudiantes().length > 0) {
+          @if (puedeSeleccionarEstudiante()) {
+            <!-- Selector de Curso / Grado Escolar -->
             <div style="display: flex; align-items: center; gap: 0.45rem; background: var(--bg-hover); padding: 0.35rem 0.65rem; border: 1.5px solid var(--border); border-radius: var(--radius-md);">
-              <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary);">🎓 Alumno:</span>
-              <select [ngModel]="estudianteSeleccionadoId()" (ngModelChange)="cambiarEstudiante($event)" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border); max-width: 17rem;">
-                @for (e of listaEstudiantes(); track e.id) {
-                  <option [value]="e.id">{{ e.nombre }} ({{ e.grupo || 'GIR' }})</option>
+              <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary);">🏫 Grado:</span>
+              <select [ngModel]="grupoSeleccionadoId()" (ngModelChange)="cambiarGrupo($event)" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border); font-weight: 700;">
+                @for (g of listaGrupos(); track g.id) {
+                  <option [value]="g.id">{{ g.nombre }}</option>
                 }
               </select>
             </div>
+
+            <!-- Selector de Estudiante en ese Curso -->
+            @if (listaEstudiantes().length > 0) {
+              <div style="display: flex; align-items: center; gap: 0.45rem; background: var(--bg-hover); padding: 0.35rem 0.65rem; border: 1.5px solid var(--border); border-radius: var(--radius-md);">
+                <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary);">🎓 Alumno:</span>
+                <select [ngModel]="estudianteSeleccionadoId()" (ngModelChange)="cambiarEstudiante($event)" style="font-size: 0.82rem; padding: 0.35rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border); max-width: 15rem;">
+                  @for (e of listaEstudiantes(); track e.id; let idx = $index) {
+                    <option [value]="e.id">{{ idx + 1 }}. {{ e.nombre }} ({{ e.documento }})</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Navegación Uno a Uno (Anterior / Siguiente) -->
+              <div style="display: flex; align-items: center; gap: 0.25rem;">
+                <button type="button" class="btn-secundario" (click)="anteriorEstudiante()" [disabled]="indiceEstudiante() <= 0" title="Ver alumno anterior" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">
+                  ◀ Anterior
+                </button>
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); padding: 0 0.3rem;">
+                  {{ indiceEstudiante() + 1 }} / {{ listaEstudiantes().length }}
+                </span>
+                <button type="button" class="btn-secundario" (click)="siguienteEstudiante()" [disabled]="indiceEstudiante() >= listaEstudiantes().length - 1" title="Ver alumno siguiente" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">
+                  Siguiente ▶
+                </button>
+              </div>
+            }
           }
 
-          <button type="button" class="btn-secundario" (click)="cargarDatos()" [disabled]="cargando()" title="Refrescar datos">
+          <!-- Alternador de Modo de Visualización (Individual vs Todo el Curso) -->
+          @if (puedeSeleccionarEstudiante() && listaEstudiantes().length > 0) {
+            <div style="display: flex; gap: 0.25rem; background: var(--bg-hover); padding: 0.2rem; border-radius: var(--radius-md); border: 1.5px solid var(--border);">
+              <button type="button" class="btn-vista-tab" [class.activo]="modoVista() === 'individual'" (click)="activarModoIndividual()" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; margin: 0;">
+                <span>👤</span> Individual
+              </button>
+              <button type="button" class="btn-vista-tab" [class.activo]="modoVista() === 'curso'" (click)="activarModoCurso()" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; margin: 0;">
+                <span>👥</span> Todo el Curso ({{ listaEstudiantes().length }})
+              </button>
+            </div>
+          }
+
+          <button type="button" class="btn-secundario" (click)="refrescar()" [disabled]="cargando()" title="Refrescar datos">
             <span>🔄</span> Actualizar
           </button>
-          <button type="button" class="btn-principal" (click)="imprimir()" [disabled]="cargando() || !boletin()">
-            <span>🖨️</span> Imprimir / Descargar PDF Oficial
-          </button>
+
+          <!-- Botón de Descarga / Impresión -->
+          @if (modoVista() === 'individual') {
+            <button type="button" class="btn-principal" (click)="imprimirIndividual()" [disabled]="cargando() || !boletin()">
+              <span>🖨️</span> Imprimir / PDF Alumno
+            </button>
+          } @else {
+            <button type="button" class="btn-principal" (click)="imprimirCurso()" [disabled]="cargando() || cargandoCurso() || boletinesCurso().length === 0" style="background: var(--grade-superior); border-color: var(--grade-superior);">
+              <span>📑</span> Descargar / Imprimir TODO el Curso ({{ boletinesCurso().length }} Boletines)
+            </button>
+          }
         </div>
       </div>
+
+      <!-- Banner Informativo del Modo Curso (Oculto en Impresión) -->
+      @if (modoVista() === 'curso' && !cargando()) {
+        <div class="aviso exito no-print" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-size: 1.35rem;">📚</span>
+            <div>
+              <strong>Visualizando todos los boletines oficiales del grado {{ nombreGrupoActual() }} ({{ boletinesCurso().length }} estudiantes)</strong>
+              <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                Listo para imprimir en bloque o guardar como PDF consolidado. Cada informe cuenta con salto de página oficial automático.
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn-accion-sm" (click)="activarModoIndividual()">
+              Volver a vista individual
+            </button>
+            <button type="button" class="btn-principal" (click)="imprimirCurso()" style="font-size: 0.82rem; padding: 0.35rem 0.75rem;">
+              🖨️ Imprimir Todo el Curso
+            </button>
+          </div>
+        </div>
+      }
 
       @if (error()) {
         <div class="aviso error no-print" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
           <span>{{ error() }}</span>
-          <button type="button" class="btn-accion-sm" (click)="cargarDatos()">Reintentar</button>
+          <button type="button" class="btn-accion-sm" (click)="refrescar()">Reintentar</button>
         </div>
       }
 
-      @if (cargando()) {
+      @if (cargando() || (modoVista() === 'curso' && cargandoCurso())) {
         <div class="card no-print" style="text-align: center; padding: 3rem 1.5rem;">
           <div class="apk-icon-box" style="animation: pulse-green 1.5s infinite; margin: 0 auto 1rem;">📜</div>
-          <h2 style="font-size: 1.3rem; margin-bottom: 0.35rem;">Generando Boletín Oficial Institucional...</h2>
+          <h2 style="font-size: 1.3rem; margin-bottom: 0.35rem;">
+            {{ modoVista() === 'curso' ? 'Generando boletines oficiales de todo el grado escolar...' : 'Generando Boletín Oficial Institucional...' }}
+          </h2>
           <p style="color: var(--text-muted); font-size: 0.88rem;">Consolidando notas del sistema, fallas biométricas y juicios pedagógicos asistidos por IA.</p>
         </div>
-      } @else if (boletin()) {
+      } @else if (modoVista() === 'individual' && boletin()) {
         <!-- Tarjeta Informativa Resumen Superior (Web y Mobile, no print) -->
         <div class="kpi-grid no-print" style="margin-bottom: 1.75rem;">
           <div class="kpi-banner">
@@ -107,17 +193,70 @@ import { mensajeError } from '../core/errores';
           </div>
         </div>
 
+        <!-- Selector de Modo de Visualización para Pantallas Pequeñas (Oculto en Impresión) -->
+        <div class="boletin-vista-tabs no-print">
+          <button type="button" class="btn-vista-tab" [class.activo]="vistaMovil() === 'tarjetas'" (click)="vistaMovil.set('tarjetas')">
+            <span>📱</span> Tarjetas de Notas
+          </button>
+          <button type="button" class="btn-vista-tab" [class.activo]="vistaMovil() === 'tabla'" (click)="vistaMovil.set('tabla')">
+            <span>📜</span> Tabla Oficial (MEN)
+          </button>
+        </div>
+
         <!-- ==========================================================================
-             DOCUMENTO OFICIAL DEL BOLETÍN (OPTIMIZADO PARA PANTALLA E IMPRESIÓN OFICIAL)
+             DOCUMENTO OFICIAL DEL BOLETÍN INDIVIDUAL
              ========================================================================== -->
-        <article class="boletin-documento">
+        <ng-container *ngTemplateOutlet="documentoBoletinTpl; context: { $implicit: boletin()! }"></ng-container>
+
+      } @else if (modoVista() === 'curso' && boletinesCurso().length > 0) {
+        <!-- ==========================================================================
+             VISTA EN BLOQUE DE TODOS LOS BOLETINES DEL CURSO SELECCIONADO
+             ========================================================================== -->
+        <div class="curso-boletines-contenedor">
+          @for (bol of boletinesCurso(); track bol.estudiante.id; let idx = $index) {
+            <!-- Separador Visual Informativo en Pantalla (Oculto en Impresión) -->
+            <div class="boletin-separador-curso no-print">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span class="badge badge-azul" style="font-weight: 800; font-size: 0.85rem;">#{{ idx + 1 }}</span>
+                <strong style="color: var(--text-primary); font-size: 1rem;">{{ bol.estudiante.nombre }}</strong>
+                <span style="font-size: 0.82rem; color: var(--text-muted);">(Doc: {{ bol.estudiante.documento }})</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-size: 0.82rem;">
+                  Promedio: <strong [style.color]="bol.estudiante.promedioGeneral >= 4.0 ? 'var(--grade-superior)' : 'var(--text-primary)'">
+                    {{ bol.estudiante.promedioGeneral > 0 ? (bol.estudiante.promedioGeneral | number:'1.2-2') : 'Pendiente' }}
+                  </strong>
+                </span>
+                <button type="button" class="btn-accion-sm" (click)="verIndividualDesdeCurso(bol.estudiante.id)">
+                  🔍 Ver solo a este alumno
+                </button>
+              </div>
+            </div>
+
+            <!-- Documento Oficial Completo del Estudiante -->
+            <ng-container *ngTemplateOutlet="documentoBoletinTpl; context: { $implicit: bol }"></ng-container>
+          }
+        </div>
+      } @else {
+        <div class="card no-print" style="text-align: center; padding: 2.5rem 1.5rem;">
+          <span style="font-size: 2.5rem;">📋</span>
+          <h2 style="font-size: 1.25rem; margin: 0.5rem 0 0.35rem;">No se encontraron calificaciones en este grado</h2>
+          <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0;">Selecciona otro grado escolar o matricula estudiantes para emitir sus boletines oficiales.</p>
+        </div>
+      }
+
+      <!-- ==========================================================================
+           TEMPLATE REUTILIZABLE: DOCUMENTO OFICIAL DE BOLETÍN (PANTALLA E IMPRESIÓN)
+           ========================================================================== -->
+      <ng-template #documentoBoletinTpl let-b>
+        <article class="boletin-documento" style="page-break-after: always; break-after: page; margin-bottom: 2rem;">
           <!-- Encabezado Institucional Oficial con Escudo y Membrete -->
           <div class="boletin-encabezado">
             <div class="boletin-colegio-bloque">
               <div class="logo-escuela-boletin">GIR</div>
               <div class="boletin-colegio-textos">
                 <h2 class="boletin-colegio-nombre">
-                  {{ boletin()!.institucion.nombre }}
+                  {{ b.institucion.nombre }}
                 </h2>
                 <div class="boletin-colegio-sub">
                   RECONOCIMIENTO OFICIAL DE ESTUDIOS DE EDUCACIÓN BÁSICA Y MEDIA VOCACIONAL
@@ -126,7 +265,7 @@ import { mensajeError } from '../core/errores';
             </div>
 
             <p class="boletin-meta-p">
-              {{ boletin()!.institucion.resolucion }} · Código DANE: <strong>{{ boletin()!.institucion.dane }}</strong> · NIT: <strong>{{ boletin()!.institucion.nit }}</strong>
+              {{ b.institucion.resolucion }} · Código DANE: <strong>{{ b.institucion.dane }}</strong> · NIT: <strong>{{ b.institucion.nit }}</strong>
             </p>
             <p class="boletin-meta-p">
               Sede Principal · Neiva, Huila - Colombia · Plataforma de Gestión Integral AsisTecht
@@ -134,7 +273,7 @@ import { mensajeError } from '../core/errores';
 
             <div class="boletin-periodo-badge-wrapper">
               <span class="boletin-periodo-badge">
-                INFORME DE EVALUACIÓN Y RENDIMIENTO ESCOLAR · {{ boletin()!.institucion.periodo | uppercase }}
+                INFORME DE EVALUACIÓN Y RENDIMIENTO ESCOLAR · {{ b.institucion.periodo | uppercase }}
               </span>
             </div>
           </div>
@@ -143,59 +282,47 @@ import { mensajeError } from '../core/errores';
           <div class="boletin-estudiante-grid">
             <div class="dato-bloque">
               <span class="dato-etiqueta">Estudiante:</span>
-              <strong class="dato-valor">{{ boletin()!.estudiante.nombre }}</strong>
+              <strong class="dato-valor">{{ b.estudiante.nombre }}</strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Documento de Identidad:</span>
-              <strong class="dato-valor">{{ boletin()!.estudiante.documento }} (T.I.)</strong>
+              <strong class="dato-valor">{{ b.estudiante.documento }} (T.I.)</strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Grado / Grupo:</span>
-              <strong class="dato-valor">{{ boletin()!.estudiante.grupo }} (Educación Media)</strong>
+              <strong class="dato-valor">{{ b.estudiante.grupo }} (Educación Media)</strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Director(a) de Grupo:</span>
-              <strong class="dato-valor">{{ boletin()!.estudiante.directorGrupo }}</strong>
+              <strong class="dato-valor">{{ b.estudiante.directorGrupo }}</strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Padre / Acudiente:</span>
-              <strong class="dato-valor">{{ boletin()!.estudiante.acudiente }}</strong>
+              <strong class="dato-valor">{{ b.estudiante.acudiente }}</strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Puesto en el Grado:</span>
               <strong class="dato-valor" style="color: #047857;">
-                {{ boletin()!.estudiante.puesto === 'Pendiente' ? 'Pendiente (En curso)' : ('Puesto ' + boletin()!.estudiante.puesto + ' de ' + boletin()!.estudiante.totalAlumnosGrupo + ' alumnos') }}
+                {{ b.estudiante.puesto === 'Pendiente' ? 'Pendiente (En curso)' : ('Puesto ' + b.estudiante.puesto + ' de ' + b.estudiante.totalAlumnosGrupo + ' alumnos') }}
               </strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Promedio Ponderado:</span>
-              <strong class="dato-valor" style="font-size: 1.05rem;" [style.color]="boletin()!.estudiante.promedioGeneral > 0 ? '#047857' : '#64748b'">
-                {{ boletin()!.estudiante.promedioGeneral > 0 ? ((boletin()!.estudiante.promedioGeneral | number:'1.2-2') + ' (' + (boletin()!.estudiante.escalaGeneral || '') + ')') : 'Sin evaluaciones registradas' }}
+              <strong class="dato-valor" style="font-size: 1.05rem;" [style.color]="b.estudiante.promedioGeneral > 0 ? '#047857' : '#64748b'">
+                {{ b.estudiante.promedioGeneral > 0 ? ((b.estudiante.promedioGeneral | number:'1.2-2') + ' (' + (b.estudiante.escalaGeneral || '') + ')') : 'Sin evaluaciones registradas' }}
               </strong>
             </div>
             <div class="dato-bloque">
               <span class="dato-etiqueta">Estado Académico:</span>
-              <strong class="dato-valor" [style.color]="boletin()!.estudiante.promedioGeneral >= 3.0 ? '#047857' : '#be123c'">
-                {{ boletin()!.estudiante.estadoAcademico || 'APROBADO SATISFACTORIAMENTE' }}
+              <strong class="dato-valor" [style.color]="b.estudiante.promedioGeneral >= 3.0 ? '#047857' : '#be123c'">
+                {{ b.estudiante.estadoAcademico || 'APROBADO SATISFACTORIAMENTE' }}
               </strong>
             </div>
           </div>
 
-          <!-- Selector de Modo de Visualización (Solo en Pantalla, Oculto en Impresión) -->
-          <div class="boletin-vista-tabs no-print">
-            <button type="button" class="btn-vista-tab" [class.activo]="vistaMovil() === 'tarjetas'" (click)="vistaMovil.set('tarjetas')">
-              <span>📱</span> Tarjetas de Notas
-            </button>
-            <button type="button" class="btn-vista-tab" [class.activo]="vistaMovil() === 'tabla'" (click)="vistaMovil.set('tabla')">
-              <span>📜</span> Tabla Oficial (MEN)
-            </button>
-          </div>
-
-          <!-- ==========================================================================
-               VISTA MÓVIL OPTIMIZADA: TARJETAS DE MATERIAS (INTUITIVA Y RESPONSIVA)
-               ========================================================================== -->
-          <div class="boletin-materias-cards no-print" [class.oculta]="vistaMovil() !== 'tarjetas'">
-            @for (materia of boletin()!.materias; track materia.nombre; let idx = $index) {
+          <!-- Vista Móvil de Tarjetas (Oculta en Impresión y cuando se elige tabla) -->
+          <div class="boletin-materias-cards no-print" [class.oculta]="vistaMovil() !== 'tarjetas' || modoVista() === 'curso'">
+            @for (materia of b.materias; track materia.nombre; let idx = $index) {
               <div class="materia-card-movil">
                 <div class="materia-card-header">
                   <div style="flex: 1; min-width: 0;">
@@ -209,7 +336,6 @@ import { mensajeError } from '../core/errores';
                   </div>
                 </div>
 
-                <!-- Evaluaciones Parciales -->
                 <div class="materia-card-parciales">
                   <span class="parciales-titulo">Calificaciones del Periodo:</span>
                   <div class="parciales-chips">
@@ -235,7 +361,6 @@ import { mensajeError } from '../core/errores';
                   </div>
                 </div>
 
-                <!-- Juicio Pedagógico Asistido por IA -->
                 @if (materia.juicioIa) {
                   <div class="materia-card-juicio">
                     <div class="juicio-icono-ia">🤖 Juicio Pedagógico Institucional (IA):</div>
@@ -246,15 +371,8 @@ import { mensajeError } from '../core/errores';
             }
           </div>
 
-          <!-- Indicador de Desplazamiento en Pantallas Pequeñas -->
-          <div class="scroll-hint-mobile no-print" [class.oculta]="vistaMovil() === 'tarjetas'">
-            👈 Desliza horizontalmente la tabla para ver todas las calificaciones y juicios pedagógicos 👉
-          </div>
-
-          <!-- ==========================================================================
-               TABLA COMPLETA DE CALIFICACIONES (10 ASIGNATURAS OFICIALES)
-               ========================================================================== -->
-          <div class="boletin-tabla-wrapper" [class.oculta-movil]="vistaMovil() === 'tarjetas'">
+          <!-- TABLA COMPLETA OFICIAL DE CALIFICACIONES (Siempre visible en impresión) -->
+          <div class="boletin-tabla-wrapper" [class.oculta-movil]="vistaMovil() === 'tarjetas' && modoVista() === 'individual'">
             <table class="boletin-tabla">
               <thead>
                 <tr>
@@ -270,7 +388,7 @@ import { mensajeError } from '../core/errores';
                 </tr>
               </thead>
               <tbody>
-                @for (materia of boletin()!.materias; track materia.nombre; let idx = $index) {
+                @for (materia of b.materias; track materia.nombre; let idx = $index) {
                   <tr>
                     <td style="text-align: center; font-weight: 700; color: #64748b; font-size: 0.82rem;">
                       {{ idx + 1 }}
@@ -329,19 +447,19 @@ import { mensajeError } from '../core/errores';
                   <td style="text-align: center; font-size: 0.88rem; font-weight: 700; color: #475569;">
                     3.90
                   </td>
-                  <td style="text-align: center; font-size: 1.15rem; font-weight: 800;" [style.color]="boletin()!.estudiante.promedioGeneral > 0 ? '#047857' : '#64748b'">
-                    {{ boletin()!.estudiante.promedioGeneral > 0 ? (boletin()!.estudiante.promedioGeneral | number:'1.2-2') : 'Pendiente' }}
+                  <td style="text-align: center; font-size: 1.15rem; font-weight: 800;" [style.color]="b.estudiante.promedioGeneral > 0 ? '#047857' : '#64748b'">
+                    {{ b.estudiante.promedioGeneral > 0 ? (b.estudiante.promedioGeneral | number:'1.2-2') : 'Pendiente' }}
                   </td>
                   <td style="text-align: center;">
-                    <span class="badge" [class]="claseEscala(boletin()!.estudiante.escalaGeneral)" style="font-size: 0.75rem;">
-                      {{ boletin()!.estudiante.escalaGeneral || 'EN CURSO' }}
+                    <span class="badge" [class]="claseEscala(b.estudiante.escalaGeneral)" style="font-size: 0.75rem;">
+                      {{ b.estudiante.escalaGeneral || 'EN CURSO' }}
                     </span>
                   </td>
                   <td style="text-align: center; font-weight: 800; color: #047857;">
-                    {{ boletin()!.estudiante.totalFallas }}
+                    {{ b.estudiante.totalFallas }}
                   </td>
-                  <td style="font-size: 0.82rem; font-weight: 700;" [style.color]="boletin()!.estudiante.promedioGeneral > 0 ? '#065f46' : '#475569'">
-                    @if (boletin()!.estudiante.promedioGeneral > 0) {
+                  <td style="font-size: 0.82rem; font-weight: 700;" [style.color]="b.estudiante.promedioGeneral > 0 ? '#065f46' : '#475569'">
+                    @if (b.estudiante.promedioGeneral > 0) {
                       ✅ Criterio de Promoción: Cumple satisfactoriamente con los estándares y competencias fijadas.
                     } @else {
                       ℹ️ Periodo Académico en Curso: El estudiante aún no cuenta con calificaciones definitivas registradas.
@@ -361,18 +479,18 @@ import { mensajeError } from '../core/errores';
               </strong>
             </div>
             <p style="margin: 0; font-size: 0.88rem; line-height: 1.5; color: #1e293b;">
-              {{ boletin()!.conceptoGeneralDirector || 'El estudiante ha demostrado un sobresaliente rendimiento académico y compromiso formativo durante el Primer Periodo Escolar 2026. Se destaca su liderazgo positivo, cumplimiento ético y alto nivel de asimilación conceptual. ¡Felicitaciones a la familia por el acompañamiento brindado!' }}
+              {{ b.conceptoGeneralDirector || 'El estudiante ha demostrado un sobresaliente rendimiento académico y compromiso formativo durante el Primer Periodo Escolar 2026. Se destaca su liderazgo positivo, cumplimiento ético y alto nivel de asimilación conceptual. ¡Felicitaciones a la familia por el acompañamiento brindado!' }}
             </p>
           </div>
 
           <!-- Observaciones del Observador de Convivencia Escolar -->
-          @if (boletin()!.observacionesConvivencia && boletin()!.observacionesConvivencia.length > 0) {
+          @if (b.observacionesConvivencia && b.observacionesConvivencia.length > 0) {
             <div style="margin-top: 1.25rem; font-size: 0.85rem; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 0.9rem; background: #fafafa;">
               <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <span>⚖️</span>
                 <strong style="color: #0e6b52; text-transform: uppercase; font-size: 0.88rem;">REGISTROS DEL OBSERVADOR DE CONVIVENCIA ESCOLAR (PERIODO 1):</strong>
               </div>
-              @for (obs of boletin()!.observacionesConvivencia; track obs.fecha) {
+              @for (obs of b.observacionesConvivencia; track obs.fecha) {
                 <div style="margin: 0.45rem 0; padding: 0.45rem 0.65rem; background: white; border-radius: 6px; border-left: 3px solid #0e6b52;">
                   <div style="font-weight: 700; color: #1e293b; font-size: 0.84rem;">
                     [{{ obs.tipo }} · {{ obs.fecha }}] {{ obs.titulo }}
@@ -447,15 +565,15 @@ import { mensajeError } from '../core/errores';
 
             <div class="firma-columna">
               <div class="boletin-firma-linea">
-                <strong>{{ boletin()!.estudiante.directorGrupo }}</strong>
+                <strong>{{ b.estudiante.directorGrupo }}</strong>
                 <span>Director(a) de Grupo</span>
               </div>
-              <span class="firma-sub">Grado {{ boletin()!.estudiante.grupo }}</span>
+              <span class="firma-sub">Grado {{ b.estudiante.grupo }}</span>
             </div>
 
             <div class="firma-columna">
               <div class="boletin-firma-linea">
-                <strong>{{ boletin()!.estudiante.acudiente }}</strong>
+                <strong>{{ b.estudiante.acudiente }}</strong>
                 <span>Firma del Acudiente / Familia</span>
               </div>
               <span class="firma-sub">Aceptación y Notificación</span>
@@ -463,20 +581,38 @@ import { mensajeError } from '../core/errores';
           </footer>
 
           <div style="margin-top: 1.5rem; text-align: center; font-size: 0.72rem; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 0.5rem;">
-            Documento expedido oficialmente por el Sistema de Gestión Escolar AsisTecht el {{ boletin()!.institucion.fechaExpedicion }}. Código de verificación digital institucional: ASIS-HUILA-2026-{{ boletin()!.estudiante.id }}-BOLET.
+            Documento expedido oficialmente por el Sistema de Gestión Escolar AsisTecht el {{ b.institucion.fechaExpedicion }}. Código de verificación digital institucional: ASIS-HUILA-2026-{{ b.estudiante.id }}-BOLET.
           </div>
         </article>
-      }
+      </ng-template>
     </section>
   `
 })
 export class BoletinComponent implements OnInit {
   boletin = signal<BoletinOficial | null>(null);
   cargando = signal(true);
+  cargandoCurso = signal(false);
   error = signal('');
   vistaMovil = signal<'tarjetas' | 'tabla'>('tarjetas');
-  listaEstudiantes = signal<Estudiante[]>([]);
+  modoVista = signal<'individual' | 'curso'>('individual');
+
+  listaGrupos = signal<GrupoItem[]>([]);
+  grupoSeleccionadoId = signal<number>(1);
+  listaEstudiantes = signal<EstudianteResumen[]>([]);
   estudianteSeleccionadoId = signal<number>(1);
+  boletinesCurso = signal<BoletinOficial[]>([]);
+
+  indiceEstudiante = computed(() => {
+    const lista = this.listaEstudiantes();
+    const selId = this.estudianteSeleccionadoId();
+    return lista.findIndex(e => e.id === selId);
+  });
+
+  nombreGrupoActual = computed(() => {
+    const gid = this.grupoSeleccionadoId();
+    const g = this.listaGrupos().find(x => x.id === gid);
+    return g ? g.nombre : '';
+  });
 
   constructor(
     private api: ApiService,
@@ -491,22 +627,127 @@ export class BoletinComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.puedeSeleccionarEstudiante()) {
-      this.api.estudiantes().subscribe({
-        next: (lista) => {
-          this.listaEstudiantes.set(lista || []);
-        }
-      });
+      this.cargarGrupos();
+    } else {
+      this.cargarDatosIndividual();
     }
-    this.cargarDatos();
+  }
+
+  cargarGrupos(): void {
+    this.api.grupos().subscribe({
+      next: (grupos) => {
+        const items = (grupos || []).map(g => ({ id: g.id, nombre: g.nombre }));
+        this.listaGrupos.set(items);
+        if (items.length > 0) {
+          const primero = items[0].id;
+          this.grupoSeleccionadoId.set(primero);
+          this.cargarEstudiantesGrupo(primero);
+        } else {
+          this.cargarDatosIndividual();
+        }
+      },
+      error: () => {
+        this.cargarDatosIndividual();
+      }
+    });
+  }
+
+  cambiarGrupo(nuevoGrupoId: number): void {
+    const gid = Number(nuevoGrupoId);
+    this.grupoSeleccionadoId.set(gid);
+    this.boletinesCurso.set([]);
+    this.cargarEstudiantesGrupo(gid);
+  }
+
+  cargarEstudiantesGrupo(grupoId: number): void {
+    this.cargando.set(true);
+    this.error.set('');
+
+    this.api.boletinEstudiantes(grupoId).subscribe({
+      next: (estudiantes) => {
+        const lista = (estudiantes || []) as EstudianteResumen[];
+        this.listaEstudiantes.set(lista);
+
+        if (lista.length > 0) {
+          const primerEst = lista[0].id;
+          this.estudianteSeleccionadoId.set(primerEst);
+          this.cargarPorId(primerEst);
+          // Precarga en segundo plano de todos los boletines de este grupo
+          this.cargarBoletinesDelCurso(grupoId);
+        } else {
+          this.boletin.set(null);
+          this.boletinesCurso.set([]);
+          this.cargando.set(false);
+        }
+      },
+      error: (err) => {
+        this.cargando.set(false);
+        this.error.set(mensajeError(err));
+      }
+    });
   }
 
   cambiarEstudiante(nuevoId: number): void {
     const id = Number(nuevoId);
     this.estudianteSeleccionadoId.set(id);
+    this.modoVista.set('individual');
     this.cargarPorId(id);
   }
 
-  cargarDatos(): void {
+  anteriorEstudiante(): void {
+    const idx = this.indiceEstudiante();
+    if (idx > 0) {
+      const prev = this.listaEstudiantes()[idx - 1];
+      this.cambiarEstudiante(prev.id);
+    }
+  }
+
+  siguienteEstudiante(): void {
+    const idx = this.indiceEstudiante();
+    const lista = this.listaEstudiantes();
+    if (idx >= 0 && idx < lista.length - 1) {
+      const sig = lista[idx + 1];
+      this.cambiarEstudiante(sig.id);
+    }
+  }
+
+  activarModoIndividual(): void {
+    this.modoVista.set('individual');
+  }
+
+  activarModoCurso(): void {
+    this.modoVista.set('curso');
+    if (this.boletinesCurso().length === 0) {
+      this.cargarBoletinesDelCurso(this.grupoSeleccionadoId());
+    }
+  }
+
+  verIndividualDesdeCurso(estudianteId: number): void {
+    this.cambiarEstudiante(estudianteId);
+  }
+
+  private cargarBoletinesDelCurso(grupoId: number): void {
+    this.cargandoCurso.set(true);
+    this.api.boletinCurso(grupoId).subscribe({
+      next: (res) => {
+        this.boletinesCurso.set(res?.boletines || []);
+        this.cargandoCurso.set(false);
+      },
+      error: () => {
+        this.cargandoCurso.set(false);
+      }
+    });
+  }
+
+  refrescar(): void {
+    if (this.puedeSeleccionarEstudiante()) {
+      this.cargarEstudiantesGrupo(this.grupoSeleccionadoId());
+    } else {
+      this.cargarDatosIndividual();
+    }
+  }
+
+  cargarDatosIndividual(): void {
     this.cargando.set(true);
     this.error.set('');
 
@@ -516,7 +757,6 @@ export class BoletinComponent implements OnInit {
       this.estudianteSeleccionadoId.set(id);
       this.cargarPorId(id);
     } else {
-      // Usar endpoint mi-boletin con rol actual
       this.api.miBoletin().subscribe({
         next: (res) => {
           this.boletin.set(res);
@@ -525,15 +765,17 @@ export class BoletinComponent implements OnInit {
             this.estudianteSeleccionadoId.set(res.estudiante.id);
           }
         },
-        error: () => {
-          // Fallback al primer estudiante si ocurre error de rol
-          this.cargarPorId(1);
+        error: (err) => {
+          this.cargando.set(false);
+          this.error.set(mensajeError(err));
         }
       });
     }
   }
 
   private cargarPorId(id: number): void {
+    this.cargando.set(true);
+    this.error.set('');
     this.api.boletin(id).subscribe({
       next: (res) => {
         this.boletin.set(res);
@@ -547,8 +789,36 @@ export class BoletinComponent implements OnInit {
     });
   }
 
-  imprimir(): void {
-    window.print();
+  imprimirIndividual(): void {
+    this.modoVista.set('individual');
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  }
+
+  imprimirCurso(): void {
+    if (this.boletinesCurso().length === 0) {
+      this.cargandoCurso.set(true);
+      this.api.boletinCurso(this.grupoSeleccionadoId()).subscribe({
+        next: (res) => {
+          this.boletinesCurso.set(res?.boletines || []);
+          this.cargandoCurso.set(false);
+          this.modoVista.set('curso');
+          setTimeout(() => {
+            window.print();
+          }, 350);
+        },
+        error: (err) => {
+          this.cargandoCurso.set(false);
+          this.error.set(mensajeError(err));
+        }
+      });
+    } else {
+      this.modoVista.set('curso');
+      setTimeout(() => {
+        window.print();
+      }, 250);
+    }
   }
 
   claseEscala(escala?: string | null): string {

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AsisQR.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "Profesor")]
+[Authorize(Roles = "Profesor,Director,Admin")]
 [Route("api/estudiantes")]
 public class EstudiantesController : ControllerBase
 {
@@ -18,9 +18,15 @@ public class EstudiantesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Listar([FromQuery] int? grupoId)
     {
-        var id = ProfesorId();
-        var query = _db.Estudiantes.Where(e =>
-            e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)));
+        IQueryable<Estudiante> query = _db.Estudiantes.AsQueryable();
+
+        if (User.IsInRole("Profesor"))
+        {
+            var id = ProfesorId();
+            query = query.Where(e =>
+                e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)));
+        }
+
         if (grupoId is not null)
             query = query.Where(e => e.GrupoId == grupoId);
 
@@ -44,6 +50,7 @@ public class EstudiantesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Profesor")]
     public async Task<IActionResult> Crear([FromBody] EstudianteRequest body)
     {
         var nombre = (body.Nombre ?? "").Trim();
@@ -90,6 +97,7 @@ public class EstudiantesController : ControllerBase
     }
 
     [HttpPost("{estudianteId:int}/clave-dinamica")]
+    [Authorize(Policy = "Profesor")]
     public async Task<IActionResult> ResetClaveDinamica(int estudianteId)
     {
         var estudiante = await _db.Estudiantes
@@ -114,15 +122,15 @@ public class EstudiantesController : ControllerBase
     [HttpPut("{estudianteId:int}")]
     public async Task<IActionResult> Actualizar(int estudianteId, [FromBody] EstudianteUpdate body)
     {
-        var estudiante = await _db.Estudiantes
-            .FirstOrDefaultAsync(e => e.Id == estudianteId && e.ProfesorId == ProfesorId());
+        var estudiante = await Visible(estudianteId);
         if (estudiante is null)
             return NotFound(new { mensaje = "No se encontró el estudiante." });
 
         var nombre = (body.Nombre ?? "").Trim();
         if (nombre.Length == 0 || nombre.Length > 120)
             return BadRequest(new { mensaje = "Escribe el nombre del estudiante." });
-        if (!await GrupoPropio(body.GrupoId))
+
+        if (User.IsInRole("Profesor") && !await GrupoPropio(body.GrupoId))
             return BadRequest(new { mensaje = "Elige un grupo válido." });
 
         estudiante.Nombre = nombre;
@@ -230,6 +238,9 @@ public class EstudiantesController : ControllerBase
 
     private async Task<Estudiante?> Visible(int estudianteId)
     {
+        if (User.IsInRole("Director") || User.IsInRole("Admin"))
+            return await _db.Estudiantes.FirstOrDefaultAsync(e => e.Id == estudianteId);
+
         var id = ProfesorId();
         return await _db.Estudiantes.FirstOrDefaultAsync(e =>
             e.Id == estudianteId && e.Grupo != null &&

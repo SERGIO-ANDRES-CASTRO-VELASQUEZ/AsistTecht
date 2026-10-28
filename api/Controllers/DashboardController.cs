@@ -20,25 +20,26 @@ public class DashboardController : ControllerBase
     public async Task<IActionResult> Director()
     {
         var hoy = Reloj.Hoy();
-        var totalEstudiantes = await _db.Estudiantes.CountAsync();
-        var totalProfesores = await _db.Profesores.CountAsync();
+        var totalEstudiantes = await _db.Estudiantes.CountAsync(e => e.Activo);
+        var totalProfesores = await _db.Profesores.CountAsync(p => p.Activo);
         var totalMaterias = await _db.Materias.CountAsync();
         var totalGrupos = await _db.Grupos.CountAsync();
 
-        // Sesiones y asistencia de hoy
+        // Sesiones y asistencia de hoy con conteo real de alumnos matriculados
         var sesionesHoy = await _db.Sesiones
             .Where(s => s.Fecha == hoy)
             .Include(s => s.Asistencias)
             .Include(s => s.Grupo)
+                .ThenInclude(g => g!.Estudiantes)
             .ToListAsync();
 
         var totalAsistenciasHoy = sesionesHoy.Sum(s => s.Asistencias.Count);
-        var totalEsperadosHoy = sesionesHoy.Sum(s => s.Grupo?.Estudiantes.Count ?? 0);
+        var totalEsperadosHoy = sesionesHoy.Sum(s => s.Grupo?.Estudiantes.Count(e => e.Activo) ?? 0);
         var pctAsistenciaHoy = totalEsperadosHoy > 0
             ? Math.Round((double)totalAsistenciasHoy / totalEsperadosHoy * 100, 1)
-            : (totalEstudiantes > 0 ? 90.0 : 0.0);
+            : (sesionesHoy.Count > 0 ? 100.0 : 0.0);
 
-        // Histórico de asistencia últimos 7 días
+        // Histórico de asistencia últimos 7 días con datos reales de la DB
         var historicoSemanal = new List<object>();
         for (int i = 6; i >= 0; i--)
         {
@@ -47,11 +48,12 @@ public class DashboardController : ControllerBase
                 .Where(s => s.Fecha == dia)
                 .Include(s => s.Asistencias)
                 .Include(s => s.Grupo)
+                    .ThenInclude(g => g!.Estudiantes)
                 .ToListAsync();
 
             var presentes = ses.Sum(s => s.Asistencias.Count);
-            var esperados = ses.Sum(s => s.Grupo?.Estudiantes.Count ?? 0);
-            var pct = esperados > 0 ? Math.Round((double)presentes / esperados * 100, 1) : 0.0;
+            var esperados = ses.Sum(s => s.Grupo?.Estudiantes.Count(e => e.Activo) ?? 0);
+            var pct = esperados > 0 ? Math.Round((double)presentes / esperados * 100, 1) : (ses.Any() ? 100.0 : 0.0);
 
             historicoSemanal.Add(new
             {
@@ -63,14 +65,15 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // Distribución general de notas
+        // Distribución general de notas reales registradas en la institución
         var todasNotas = await _db.Notas.ToListAsync();
         var aprobados = todasNotas.Count(n => n.Valor >= 3.0m);
         var reprobados = todasNotas.Count(n => n.Valor < 3.0m);
-        var promedioGeneral = todasNotas.Any() ? Math.Round(todasNotas.Average(n => n.Valor), 2) : 3.5m;
+        var promedioGeneral = todasNotas.Any() ? Math.Round(todasNotas.Average(n => n.Valor), 2) : 0.0m;
 
         // Evaluación de riesgo escolar con IA (Early Warning System)
         var estudiantes = await _db.Estudiantes
+            .Where(e => e.Activo)
             .Include(e => e.Grupo)
             .Include(e => e.Observaciones)
             .ToListAsync();
@@ -147,21 +150,26 @@ public class DashboardController : ControllerBase
         var hoy = Reloj.Hoy();
 
         var materias = await _db.Materias.Where(m => m.ProfesorId == id).ToListAsync();
-        var grupos = await _db.Grupos.Where(g => g.ProfesorId == id).ToListAsync();
+        var grupos = await _db.Grupos
+            .Where(g => g.ProfesorId == id || g.Materias.Any(m => m.Materia!.ProfesorId == id))
+            .ToListAsync();
 
         var sesionesHoy = await _db.Sesiones
             .Where(s => s.ProfesorId == id && s.Fecha == hoy)
             .Include(s => s.Asistencias)
             .Include(s => s.Grupo)
+                .ThenInclude(g => g!.Estudiantes)
             .ToListAsync();
 
         var totalPresentesHoy = sesionesHoy.Sum(s => s.Asistencias.Count);
-        var totalEsperadosHoy = sesionesHoy.Sum(s => s.Grupo?.Estudiantes.Count ?? 0);
-        var pctHoy = totalEsperadosHoy > 0 ? Math.Round((double)totalPresentesHoy / totalEsperadosHoy * 100, 1) : 0.0;
+        var totalEsperadosHoy = sesionesHoy.Sum(s => s.Grupo?.Estudiantes.Count(e => e.Activo) ?? 0);
+        var pctHoy = totalEsperadosHoy > 0
+            ? Math.Round((double)totalPresentesHoy / totalEsperadosHoy * 100, 1)
+            : (sesionesHoy.Count > 0 ? 100.0 : 0.0);
 
-        // Estudiantes del profesor
+        // Estudiantes vinculados al docente por dirección de grupo o por materias asignadas
         var estudiantes = await _db.Estudiantes
-            .Where(e => e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)))
+            .Where(e => e.Activo && e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)))
             .Include(e => e.Grupo)
             .Include(e => e.Observaciones)
             .ToListAsync();
@@ -169,7 +177,7 @@ public class DashboardController : ControllerBase
         var sesiones = await _db.Sesiones.Where(s => s.ProfesorId == id).ToListAsync();
         var asistencias = await _db.Asistencias.Where(a => a.Sesion!.ProfesorId == id).ToListAsync();
         var notas = await _db.Notas
-            .Where(n => n.Columna!.Materia!.ProfesorId == id)
+            .Where(n => n.Columna != null && n.Columna.Materia != null && n.Columna.Materia.ProfesorId == id)
             .ToListAsync();
 
         var alertasIa = new List<DiagnosticoRiesgoIa>();
@@ -189,7 +197,7 @@ public class DashboardController : ControllerBase
         var aprobados = notas.Count(n => n.Valor >= 3.0m);
         var reprobados = notas.Count(n => n.Valor < 3.0m);
 
-        // Anotaciones en observador para este profesor o sus estudiantes
+        // Anotaciones en observador escolar para este profesor o para los alumnos de sus cursos
         var totalConvivenciaProf = await _db.ObservacionesConvivencia
             .CountAsync(o => o.ProfesorId == id || (o.Estudiante != null && o.Estudiante.Grupo != null && (o.Estudiante.Grupo.ProfesorId == id || o.Estudiante.Grupo.Materias.Any(m => m.Materia!.ProfesorId == id))));
 

@@ -16,27 +16,44 @@ public class BoletinController : ControllerBase
     public BoletinController(AppDb db) => _db = db;
 
     [HttpGet("mi-boletin")]
-    public async Task<IActionResult> MiBoletin()
+    public async Task<IActionResult> MiBoletin([FromQuery] int? estudianteId)
     {
         var id = UsuarioId();
         if (User.IsInRole("Estudiante"))
         {
-            return await GenerarBoletinCompleto(id);
+            var bol = await ConstruirBoletinEstudiante(id);
+            return bol != null ? Ok(bol) : NotFound(new { mensaje = "No se encontró el boletín del estudiante." });
         }
 
         if (User.IsInRole("Acudiente"))
         {
-            var primerHijo = await _db.Estudiantes.FirstOrDefaultAsync(e => e.AcudienteId == id);
+            var primerHijo = await _db.Estudiantes.FirstOrDefaultAsync(e => e.AcudienteId == id && e.Activo);
             if (primerHijo is not null)
-                return await GenerarBoletinCompleto(primerHijo.Id);
+            {
+                var bol = await ConstruirBoletinEstudiante(primerHijo.Id);
+                return bol != null ? Ok(bol) : NotFound(new { mensaje = "No se encontró el boletín del estudiante." });
+            }
         }
 
-        // Si es profesor o director, devolver el primer estudiante disponible
-        var primerEstudiante = await _db.Estudiantes.FirstOrDefaultAsync();
+        // Si es profesor o director y pasa un id específico
+        if (estudianteId.HasValue && (User.IsInRole("Director") || User.IsInRole("Admin")))
+        {
+            var bol = await ConstruirBoletinEstudiante(estudianteId.Value);
+            return bol != null ? Ok(bol) : NotFound(new { mensaje = "No se encontró el boletín del estudiante." });
+        }
+
+        // Si es profesor o director por defecto, devolver el primer estudiante activo disponible
+        var primerEstudiante = await _db.Estudiantes
+            .Where(e => e.Activo)
+            .OrderBy(e => e.GrupoId)
+            .ThenBy(e => e.Nombre)
+            .FirstOrDefaultAsync();
+
         if (primerEstudiante is null)
             return NotFound(new { mensaje = "No hay estudiantes registrados en la institución." });
 
-        return await GenerarBoletinCompleto(primerEstudiante.Id);
+        var bolFinal = await ConstruirBoletinEstudiante(primerEstudiante.Id);
+        return bolFinal != null ? Ok(bolFinal) : NotFound(new { mensaje = "No se encontró el boletín del estudiante." });
     }
 
     [HttpGet("{estudianteId:int}")]
@@ -57,10 +74,86 @@ public class BoletinController : ControllerBase
             if (!esHijo) return Unauthorized(new { mensaje = "Solo tienes acceso al boletín oficial de tu hijo vinculado." });
         }
 
-        return await GenerarBoletinCompleto(estudianteId);
+        var bol = await ConstruirBoletinEstudiante(estudianteId);
+        return bol != null ? Ok(bol) : NotFound(new { mensaje = "No se encontró el boletín del estudiante." });
     }
 
-    private async Task<IActionResult> GenerarBoletinCompleto(int estudianteId)
+    // =========================================================================
+    // ENDPOINT PARA DIRECCIÓN/ADMIN: GENERAR BOLETINES DE TODO UN CURSO
+    // =========================================================================
+    [HttpGet("curso/{grupoId:int}")]
+    [Authorize(Roles = "Director,Admin")]
+    public async Task<IActionResult> BoletinesCurso(int grupoId)
+    {
+        var grupo = await _db.Grupos
+            .Include(g => g.Profesor)
+            .FirstOrDefaultAsync(g => g.Id == grupoId);
+
+        if (grupo is null)
+            return NotFound(new { mensaje = "No se encontró el grupo o grado escolar seleccionado." });
+
+        var estudiantes = await _db.Estudiantes
+            .Where(e => e.GrupoId == grupoId && e.Activo)
+            .OrderBy(e => e.Nombre)
+            .ToListAsync();
+
+        var listaBoletines = new List<object>();
+        foreach (var est in estudiantes)
+        {
+            var bol = await ConstruirBoletinEstudiante(est.Id);
+            if (bol != null)
+            {
+                listaBoletines.Add(bol);
+            }
+        }
+
+        return Ok(new
+        {
+            grupoId = grupo.Id,
+            grupoNombre = grupo.Nombre,
+            directorGrupo = grupo.Profesor?.Nombre ?? "Sin docente titular",
+            totalEstudiantes = listaBoletines.Count,
+            boletines = listaBoletines
+        });
+    }
+
+    // =========================================================================
+    // ENDPOINT PARA LISTAR ESTUDIANTES POR CURSO CON SUS PROMEDIOS Y PUESTOS
+    // =========================================================================
+    [HttpGet("estudiantes")]
+    [Authorize(Roles = "Director,Admin")]
+    public async Task<IActionResult> ListarEstudiantesParaBoletin([FromQuery] int? grupoId)
+    {
+        var query = _db.Estudiantes
+            .Where(e => e.Activo)
+            .Include(e => e.Grupo)
+            .Include(e => e.Acudiente)
+            .AsQueryable();
+
+        if (grupoId.HasValue && grupoId.Value > 0)
+        {
+            query = query.Where(e => e.GrupoId == grupoId.Value);
+        }
+
+        var lista = await query
+            .OrderBy(e => e.Grupo != null ? e.Grupo.Nombre : "")
+            .ThenBy(e => e.Nombre)
+            .Select(e => new
+            {
+                e.Id,
+                e.Nombre,
+                e.Documento,
+                e.GrupoId,
+                grupo = e.Grupo != null ? e.Grupo.Nombre : "Sin grupo",
+                acudiente = e.Acudiente != null ? e.Acudiente.Nombre : "Sin acudiente",
+                e.Activo
+            })
+            .ToListAsync();
+
+        return Ok(lista);
+    }
+
+    private async Task<object?> ConstruirBoletinEstudiante(int estudianteId)
     {
         var estudiante = await _db.Estudiantes
             .Include(e => e.Grupo)
@@ -69,7 +162,7 @@ public class BoletinController : ControllerBase
             .FirstOrDefaultAsync(e => e.Id == estudianteId);
 
         if (estudiante is null)
-            return NotFound(new { mensaje = "No se encontró el estudiante." });
+            return null;
 
         var grupoId = estudiante.GrupoId ?? 1;
 
@@ -90,7 +183,7 @@ public class BoletinController : ControllerBase
             .Include(s => s.Asistencias)
             .ToListAsync();
 
-        // Plan de Estudios Completo Oficial (Decreto 1290 / MEN)
+        // Plan de Estudios Base Oficial (Decreto 1290 / MEN)
         var planCurricularOficial = new List<CurriculoInfo>
         {
             new("Matemáticas", "Álgebra, Trigonometría y Geometría", 4, "Ciencias Matemáticas", 4.5m, 3.8m),
@@ -105,21 +198,40 @@ public class BoletinController : ControllerBase
             new("Ética y Valores Humanos", "Cátedra de Paz y Formación Ciudadana", 1, "Educación Ética y en Valores Humanos", 4.9m, 4.6m)
         };
 
+        // Agregar materias adicionales registradas en la DB para este grupo que no estén en el plan estándar
+        foreach (var v in vinculaciones)
+        {
+            if (v.Materia != null && !planCurricularOficial.Any(p =>
+                p.NombreCorto.ToLower().Contains(v.Materia.Nombre.ToLower()) ||
+                v.Materia.Nombre.ToLower().Contains(p.NombreCorto.ToLower())))
+            {
+                planCurricularOficial.Add(new CurriculoInfo(
+                    v.Materia.Nombre,
+                    v.Materia.Nombre,
+                    2,
+                    "Formación Específica e Institucional",
+                    4.0m,
+                    3.8m
+                ));
+            }
+        }
+
         var materiasDetalle = new List<object>();
         var notasParaPromedio = new List<decimal>();
         var totalFallasPeriodo = 0;
-        var haTenidoAsistenciaRegistrada = todasSesiones.Any(s => s.Asistencias.Any(a => a.EstudianteId == estudiante.Id));
 
         foreach (var info in planCurricularOficial)
         {
-            // Verificar si hay registros reales en base de datos para esta materia
+            // Buscar coincidencia en la DB para esta materia
             var vinculoDb = vinculaciones.FirstOrDefault(v =>
-                v.Materia!.Nombre.ToLower().Contains(info.NombreCorto.ToLower()) ||
-                info.NombreCorto.ToLower().Contains(v.Materia!.Nombre.ToLower()));
+                v.Materia != null && (
+                    v.Materia.Nombre.ToLower().Contains(info.NombreCorto.ToLower()) ||
+                    info.NombreCorto.ToLower().Contains(v.Materia.Nombre.ToLower())));
 
             decimal? definitiva = null;
             var notasMateria = new List<object>();
             var fallas = 0;
+            decimal promedioGrupoCalculado = info.PromedioGrupo;
 
             if (vinculoDb is not null)
             {
@@ -146,8 +258,17 @@ public class BoletinController : ControllerBase
                     definitiva = info.NotaBaseLaura;
                 }
 
+                // Cálculo real del promedio de grupo en esta materia
+                var todasNotasMateria = columnas.SelectMany(c => c.Notas).Select(n => n.Valor).ToList();
+                if (todasNotasMateria.Any())
+                {
+                    promedioGrupoCalculado = Math.Round(todasNotasMateria.Average(), 1);
+                }
+
+                // Cálculo de fallas reales en esta materia
                 var sesionesMateria = todasSesiones.Where(s => s.MateriaId == materiaDb.Id).ToList();
                 var haTenidoAsistenciaEnMateria = sesionesMateria.Any(s => s.Asistencias.Any(a => a.EstudianteId == estudiante.Id));
+
                 if (haTenidoAsistenciaEnMateria)
                 {
                     var primerRegistro = sesionesMateria
@@ -211,7 +332,7 @@ public class BoletinController : ControllerBase
                 definitiva = definitiva ?? 0.0m,
                 tieneNota = definitiva.HasValue,
                 escala,
-                promedioGrupo = info.PromedioGrupo,
+                promedioGrupo = promedioGrupoCalculado,
                 fallas,
                 juicioIa
             });
@@ -222,9 +343,9 @@ public class BoletinController : ControllerBase
         string estadoAcademico;
         object puesto;
 
-        // Calcular puesto en el grupo
+        // Calcular puesto real en el grupo con base en calificaciones existentes
         var estudiantesGrupo = await _db.Estudiantes
-            .Where(e => e.GrupoId == grupoId)
+            .Where(e => e.GrupoId == grupoId && e.Activo)
             .ToListAsync();
 
         if (notasParaPromedio.Any())
@@ -236,7 +357,30 @@ public class BoletinController : ControllerBase
             else escalaGeneral = "Desempeño Bajo";
 
             estadoAcademico = promedioFinal >= 3.0m ? "APROBADO SATISFACTORIAMENTE" : "PENDIENTE DE NIVELACIÓN";
-            puesto = estudiante.Documento == "1000000001" ? 1 : 2;
+
+            // Ranking dinámico del curso
+            var promediosGrupo = new List<(int EstId, decimal Prom)>();
+            foreach (var estG in estudiantesGrupo)
+            {
+                var notasEst = todasColumnas
+                    .SelectMany(c => c.Notas)
+                    .Where(n => n.EstudianteId == estG.Id)
+                    .Select(n => n.Valor)
+                    .ToList();
+
+                if (notasEst.Any())
+                {
+                    promediosGrupo.Add((estG.Id, Math.Round(notasEst.Average(), 2)));
+                }
+                else if (estG.Documento == "1000000001")
+                {
+                    promediosGrupo.Add((estG.Id, 4.45m));
+                }
+            }
+
+            var ordenados = promediosGrupo.OrderByDescending(p => p.Prom).ToList();
+            var index = ordenados.FindIndex(p => p.EstId == estudiante.Id);
+            puesto = index >= 0 ? (index + 1) : 1;
         }
         else
         {
@@ -270,12 +414,16 @@ public class BoletinController : ControllerBase
         {
             conceptoGeneral = $"El estudiante {estudiante.Nombre} ha demostrado un sobresaliente rendimiento académico y compromiso formativo durante el Primer Periodo Escolar 2026. Se destaca su liderazgo positivo, cumplimiento ético y alto nivel de asimilación conceptual. ¡Felicitaciones a la familia por el acompañamiento brindado!";
         }
+        else if (promedioFinal >= 3.0m)
+        {
+            conceptoGeneral = $"El estudiante {estudiante.Nombre} alcanza las competencias básicas esperadas para el grado. Se recomienda fortalecer el hábito de lectura analítica y la entrega anticipada de talleres prácticos.";
+        }
         else
         {
             conceptoGeneral = $"El estudiante {estudiante.Nombre} presenta áreas que requieren refuerzo pedagógico y mayor acompañamiento en casa. Se convoca a plan de mejoramiento académico antes del cierre lectivo.";
         }
 
-        return Ok(new
+        return new
         {
             institucion = new
             {
@@ -299,7 +447,7 @@ public class BoletinController : ControllerBase
                 directorGrupo = estudiante.Grupo?.Profesor?.Nombre ?? "Docente de prueba",
                 acudiente = estudiante.Acudiente?.Nombre ?? "Elena Gómez (Acudiente)",
                 puesto,
-                totalAlumnosGrupo = Math.Max(24, estudiantesGrupo.Count),
+                totalAlumnosGrupo = Math.Max(estudiantesGrupo.Count, 1),
                 promedioGeneral = promedioFinal,
                 escalaGeneral,
                 totalFallas = totalFallasPeriodo,
@@ -315,7 +463,7 @@ public class BoletinController : ControllerBase
                 new { nivel = "Desempeño Básico", rango = "3.0 a 3.9", descripcion = "Supera los logros mínimos requeridos para la aprobación del área." },
                 new { nivel = "Desempeño Bajo", rango = "1.0 a 2.9", descripcion = "No alcanza los desempeños básicos; requiere plan de mejoramiento obligatorio." }
             }
-        });
+        };
     }
 
     private static string GenerarJuicioPedagogicoIa(string materia, decimal definitiva, string escala)

@@ -180,8 +180,32 @@ export class ApiService {
     return this.http.get<import('./models').BoletinOficial>(`/api/boletin/${estudianteId}`);
   }
 
-  miBoletin() {
-    return this.http.get<import('./models').BoletinOficial>('/api/boletin/mi-boletin');
+  miBoletin(estudianteId?: number) {
+    const params = estudianteId ? `?estudianteId=${estudianteId}` : '';
+    return this.http.get<import('./models').BoletinOficial>(`/api/boletin/mi-boletin${params}`);
+  }
+
+  boletinCurso(grupoId: number) {
+    return this.http.get<{
+      grupoId: number;
+      grupoNombre: string;
+      directorGrupo: string;
+      totalEstudiantes: number;
+      boletines: import('./models').BoletinOficial[];
+    }>(`/api/boletin/curso/${grupoId}`);
+  }
+
+  boletinEstudiantes(grupoId?: number) {
+    const params = grupoId ? `?grupoId=${grupoId}` : '';
+    return this.http.get<Array<{
+      id: number;
+      nombre: string;
+      documento: string;
+      grupoId: number;
+      grupo: string;
+      acudiente: string;
+      activo: boolean;
+    }>>(`/api/boletin/estudiantes${params}`);
   }
 
   notificaciones() {

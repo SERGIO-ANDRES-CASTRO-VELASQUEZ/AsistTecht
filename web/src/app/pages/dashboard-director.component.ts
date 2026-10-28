@@ -74,7 +74,7 @@ import { mensajeError } from '../core/errores';
             <div class="kpi-icono" style="background: var(--grade-alto-bg); color: var(--grade-alto);">📈</div>
             <div class="kpi-info">
               <span class="kpi-titulo">Promedio General</span>
-              <strong class="kpi-numero" style="color: var(--grade-alto);">{{ data()!.kpis.promedioGeneral | number:'1.2-2' }}</strong>
+              <strong class="kpi-numero" style="color: var(--grade-alto);">{{ data()!.kpis.promedioGeneral > 0 ? (data()!.kpis.promedioGeneral | number:'1.2-2') : 'Pendiente' }}</strong>
               <span class="kpi-desc">Escala 1.0 a 5.0 (MEN)</span>
             </div>
           </div>

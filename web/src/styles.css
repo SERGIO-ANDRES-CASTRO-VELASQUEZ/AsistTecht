@@ -4580,3 +4580,38 @@ input:focus, select:focus, textarea:focus {
   white-space: nowrap;
 }
 
+
+/* ==========================================================================
+   BOLETINES EN BLOQUE POR CURSO Y CONTROL DE IMPRESIÓN OFICIAL
+   ========================================================================== */
+.boletin-separador-curso {
+  max-width: 68rem;
+  margin: 2rem auto 1rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-hover);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+@media print {
+  .boletin-separador-curso,
+  .curso-boletines-contenedor > .boletin-separador-curso {
+    display: none !important;
+  }
+  .boletin-documento {
+    page-break-after: always !important;
+    break-after: page !important;
+    margin: 0 0 2rem 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .boletin-documento:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+}
