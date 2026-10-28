@@ -192,5 +192,18 @@ public class SolicitudClave
     public DateTime? AtendidaEn { get; set; }
 }
 
-
-
+public class HorarioClase
+{
+    public int Id { get; set; }
+    public int GrupoId { get; set; }
+    public Grupo? Grupo { get; set; }
+    public int MateriaId { get; set; }
+    public Materia? Materia { get; set; }
+    public int ProfesorId { get; set; }
+    public Profesor? Profesor { get; set; }
+    public int DiaSemana { get; set; } // 1: Lunes, 2: Martes, 3: Miércoles, 4: Jueves, 5: Viernes, 6: Sábado
+    public string HoraInicio { get; set; } = "07:00"; // "HH:mm"
+    public string HoraFin { get; set; } = "08:30";    // "HH:mm"
+    public string? Aula { get; set; } = "Aula 101";
+    public string? Notas { get; set; }
+}

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Estudiante, Grupo, Marca, Materia, MateriaAcademica, PlanillaAsistencia, PlanillaNotas, SesionDetalle, SesionResumen } from './models';
+import { Estudiante, Grupo, Marca, Materia, MateriaAcademica, PlanillaAsistencia, PlanillaNotas, SesionDetalle, SesionResumen, HorarioClaseItem, CrearHorarioRequest } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -366,5 +366,67 @@ export class ApiService {
       materiasSugeridas: string[];
     }>('/api/director/catalogo-academico');
   }
-}
 
+  // =========================================================================
+  // HORARIOS DE CLASES (UNIVERSAL & DIRECCIÓN)
+  // =========================================================================
+  obtenerMiHorario() {
+    return this.http.get<{
+      rol: string;
+      usuarioNombre: string;
+      grupoId?: number | null;
+      grupoNombre?: string;
+      totalClases?: number;
+      estudiantes?: Array<{ id: number; nombre: string; grupoId?: number; grupoNombre?: string }>;
+      clases: HorarioClaseItem[];
+    }>('/api/horarios/mi-horario');
+  }
+
+  obtenerHorarioCurso(grupoId: number) {
+    return this.http.get<{
+      grupoId: number;
+      grupoNombre: string;
+      totalClases: number;
+      clases: HorarioClaseItem[];
+    }>(`/api/horarios/curso/${grupoId}`);
+  }
+
+  listarCursosHorario() {
+    return this.http.get<Array<{ id: number; nombre: string; totalClases: number }>>('/api/horarios/cursos');
+  }
+
+  directorListarHorarios(grupoId?: number, profesorId?: number, diaSemana?: number) {
+    const params: string[] = [];
+    if (grupoId) params.push(`grupoId=${grupoId}`);
+    if (profesorId) params.push(`profesorId=${profesorId}`);
+    if (diaSemana) params.push(`diaSemana=${diaSemana}`);
+    const qs = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.get<HorarioClaseItem[]>(`/api/director/horarios${qs}`);
+  }
+
+  directorMateriasPorCurso(grupoId: number) {
+    return this.http.get<{
+      grupoId: number;
+      grupoNombre: string;
+      materias: Array<{
+        materiaId: number;
+        materiaNombre: string;
+        profesorId: number;
+        profesorNombre: string;
+        profesorCedula: string;
+      }>;
+    }>(`/api/director/horarios/materias-por-curso/${grupoId}`);
+  }
+
+  directorCrearHorario(body: CrearHorarioRequest) {
+    return this.http.post<{ mensaje: string } & HorarioClaseItem>('/api/director/horarios', body);
+  }
+
+  directorActualizarHorario(id: number, body: CrearHorarioRequest) {
+    return this.http.put<{ mensaje: string; id: number }>(`/api/director/horarios/${id}`, body);
+  }
+
+  directorEliminarHorario(id: number) {
+    return this.http.delete<{ mensaje: string }>(`/api/director/horarios/${id}`);
+  }
+}

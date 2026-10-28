@@ -22,6 +22,7 @@ public class AppDb : DbContext
     public DbSet<ObservacionConvivencia> ObservacionesConvivencia => Set<ObservacionConvivencia>();
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
     public DbSet<SolicitudClave> SolicitudesClave => Set<SolicitudClave>();
+    public DbSet<HorarioClase> HorariosClase => Set<HorarioClase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -137,6 +138,25 @@ public class AppDb : DbContext
             .HasOne(o => o.Profesor)
             .WithMany()
             .HasForeignKey(o => o.ProfesorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<HorarioClase>().Property(h => h.HoraInicio).HasMaxLength(10);
+        modelBuilder.Entity<HorarioClase>().Property(h => h.HoraFin).HasMaxLength(10);
+        modelBuilder.Entity<HorarioClase>().Property(h => h.Aula).HasMaxLength(60);
+        modelBuilder.Entity<HorarioClase>()
+            .HasOne(h => h.Grupo)
+            .WithMany()
+            .HasForeignKey(h => h.GrupoId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<HorarioClase>()
+            .HasOne(h => h.Materia)
+            .WithMany()
+            .HasForeignKey(h => h.MateriaId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<HorarioClase>()
+            .HasOne(h => h.Profesor)
+            .WithMany()
+            .HasForeignKey(h => h.ProfesorId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

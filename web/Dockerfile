@@ -14,7 +14,7 @@ RUN apk add --no-cache curl \
       face_recognition_model-weights_manifest.json \
       face_recognition_model-shard1 \
       face_recognition_model-shard2; do \
-      curl -fsSL -o "$f" "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/$f"; \
+      [ -s "$f" ] || curl -fsSL -o "$f" "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/$f"; \
     done \
     && cd /app \
     && npx ng build --configuration=production

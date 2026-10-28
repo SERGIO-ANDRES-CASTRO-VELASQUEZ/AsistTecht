@@ -2,10 +2,12 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../core/api.service';
+import { HorarioClaseItem } from '../core/models';
 import { mensajeError } from '../core/errores';
 
 @Component({
   selector: 'app-director',
+  standalone: true,
   imports: [FormsModule, CommonModule],
   template: `
     <section class="pagina">
@@ -17,7 +19,7 @@ import { mensajeError } from '../core/errores';
             <h1 style="margin: 0;">Dirección Institucional & Currículo</h1>
           </div>
           <p class="lead" style="margin: 0; max-width: 52rem;">
-            Supervisión de la planta docente creada por Administración, creación y amarre curricular de asignaturas por docente y grado escolar, y matrícula oficial de estudiantes.
+            Supervisión de la planta docente creada por Administración, creación y amarre curricular de asignaturas por docente y grado escolar, programación oficial del horario de clases y matrícula de estudiantes.
           </p>
         </div>
       </div>
@@ -73,6 +75,9 @@ import { mensajeError } from '../core/errores';
         <button type="button" [class.activo]="tabActiva() === 'asignaturas'" (click)="tabActiva.set('asignaturas')">
           📚 Asignaturas & Cursos ({{ asignaturas().length }})
         </button>
+        <button type="button" [class.activo]="tabActiva() === 'horarios'" (click)="tabActiva.set('horarios')">
+          📅 Horarios de Clases ({{ horarios().length }})
+        </button>
         <button type="button" [class.activo]="tabActiva() === 'matricula'" (click)="tabActiva.set('matricula')">
           🎓 Matrícula Escolar
         </button>
@@ -118,56 +123,54 @@ import { mensajeError } from '../core/errores';
               <thead>
                 <tr>
                   <th>Docente</th>
-                  <th>Cédula de Ciudadanía (Acceso)</th>
+                  <th>Cédula de Ciudadanía</th>
                   <th>Estado</th>
-                  <th>Asignaturas Asignadas</th>
-                  <th style="text-align: right; padding-right: 1.5rem;">Carga Académica</th>
+                  <th>Carga Asignada (Materias)</th>
+                  <th>Grupos Titulares</th>
                 </tr>
               </thead>
               <tbody>
-                @for (d of docentesPaginados(); track d.id) {
+                @for (doc of docentesPaginados(); track doc.id) {
                   <tr>
                     <td>
-                      <div style="display: flex; align-items: center; gap: 0.65rem;">
-                        <div class="avatar-circulo" style="width: 34px; height: 34px; font-size: 0.85rem; background: var(--accent-purple);">
-                          {{ d.nombre.charAt(0) }}
-                        </div>
-                        <div>
-                          <strong>{{ d.nombre }}</strong>
-                          <span style="display: block; font-size: 0.72rem; color: var(--text-muted);">Docente Titular GIR</span>
-                        </div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.2rem;">👨‍🏫</span>
+                        <strong>{{ doc.nombre }}</strong>
                       </div>
                     </td>
 
-                    <td style="font-family: monospace; font-size: 0.92rem; font-weight: 600; color: var(--primary);">
-                      {{ d.cedula || d.usuario }}
+                    <td style="font-family: monospace; font-size: 0.9rem; font-weight: 600; color: var(--primary);">
+                      {{ doc.cedula || doc.usuario }}
                     </td>
 
                     <td>
-                      <span class="badge" [class]="d.activo ? 'badge-verde' : 'badge-rojo'">
-                        {{ d.activo ? '🟢 Activo' : '🔴 Inactivo' }}
+                      <span class="badge" [class.badge-verde]="doc.activo" [class.badge-rojo]="!doc.activo">
+                        {{ doc.activo ? '● Activo' : '○ Inactivo' }}
                       </span>
                     </td>
 
                     <td>
-                      @if (d.materias && d.materias.length > 0) {
+                      @if (doc.materias && doc.materias.length > 0) {
                         <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
-                          @for (m of d.materias; track m.id) {
-                            <span class="chip-grupo" style="font-size: 0.75rem;">
-                              📚 {{ m.nombre }}
-                              @if (m.grupos && m.grupos.length > 0) {
-                                ({{ m.grupos.join(', ') }})
-                              }
-                            </span>
+                          @for (m of doc.materias; track m.id) {
+                            <span class="chip-materia">{{ m.nombre }}</span>
                           }
                         </div>
                       } @else {
-                        <span style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">Sin materias amarradas aún</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Sin asignaturas vinculadas</span>
                       }
                     </td>
 
-                    <td style="text-align: right; padding-right: 1.5rem; font-size: 0.85rem;">
-                      <strong>{{ d.totalMaterias || d.materias.length }}</strong> materias
+                    <td>
+                      @if (doc.grupos && doc.grupos.length > 0) {
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                          @for (g of doc.grupos; track g.id) {
+                            <span class="chip-grupo">{{ g.nombre }}</span>
+                          }
+                        </div>
+                      } @else {
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">—</span>
+                      }
                     </td>
                   </tr>
                 } @empty {
@@ -203,96 +206,105 @@ import { mensajeError } from '../core/errores';
       }
 
       <!-- ======================================================================
-           TAB 2: GESTIÓN DE ASIGNATURAS Y CURSOS (CREAR Y AMARRAR)
+           TAB 2: GESTIÓN DE ASIGNATURAS Y CURSOS (AMARRE CURRICULAR)
            ====================================================================== -->
       @if (tabActiva() === 'asignaturas') {
-        <div class="entre" style="margin-bottom: 1rem;">
-          <div>
-            <h2 style="font-size: 1.25rem; margin: 0;">Malla Curricular y Amarre de Asignaturas</h2>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.2rem 0 0;">
-              Crea las asignaturas institucionales y amárralas al docente titular y al grado escolar correspondiente.
-            </p>
+        <div class="card" style="margin-bottom: 1.25rem; background: var(--bg-surface); border-left: 4px solid var(--accent-blue); padding: 1rem 1.25rem;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-size: 1.4rem;">📚</span>
+            <div>
+              <strong style="font-size: 0.95rem; color: var(--text-primary);">Competencia Directiva: Creación y Amarre Curricular</strong>
+              <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.2rem 0 0;">
+                El Director crea las materias institucionales y las amarra simultáneamente al docente titular y al grado escolar correspondiente. El profesor no gestiona asignaturas.
+              </p>
+            </div>
           </div>
-
-          <button type="button" class="btn-principal" (click)="mostrarFormAsignatura.set(!mostrarFormAsignatura())">
-            {{ mostrarFormAsignatura() ? 'Cerrar Formulario' : '+ Crear y Amarrar Asignatura' }}
-          </button>
         </div>
 
-        <!-- Formulario Crear y Amarrar Asignatura -->
+        <!-- Botón y Formulario de Nueva Asignatura -->
+        <div class="entre" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn-principal" (click)="mostrarFormAsignatura.set(!mostrarFormAsignatura())">
+            {{ mostrarFormAsignatura() ? '✕ Cancelar Creación' : '➕ Crear y Amarrar Asignatura' }}
+          </button>
+
+          <div style="min-width: 16rem;">
+            <input
+              type="text"
+              [(ngModel)]="busquedaAsignaturas"
+              placeholder="🔍 Buscar asignatura, docente o curso..."
+              style="width: 100%;"
+            />
+          </div>
+        </div>
+
         @if (mostrarFormAsignatura()) {
-          <div class="card" style="margin-bottom: 1.5rem; border-top: 4px solid var(--primary); box-shadow: var(--shadow-md);">
-            <h3>Nueva Asignatura / Amarre a Curso</h3>
-            <p class="lead">Selecciona el nombre de la materia, el docente que la impartirá y el grado escolar.</p>
+          <div class="card" style="margin-bottom: 1.5rem; border-top: 4px solid var(--accent-blue); padding: 1.5rem;">
+            <h3 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1.15rem;">➕ Crear Asignatura y Amarrar a Docente y Grado</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+              Selecciona o escribe el nombre de la materia, asigna el profesor responsable e indica el curso escolar.
+            </p>
 
-            <form (ngSubmit)="guardarAsignatura()" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin-top: 1rem;">
-              <label>
-                Nombre de la Asignatura
-                <input [(ngModel)]="nuevaAsignaturaNombre" name="nuevaAsignaturaNombre" required placeholder="Ej. Matemáticas, Biología, Inglés..." list="materiasSugeridasList" />
-                <datalist id="materiasSugeridasList">
-                  @for (m of catalogoMaterias(); track m) {
-                    <option [value]="m"></option>
-                  }
-                </datalist>
-              </label>
+            <form (ngSubmit)="guardarAsignatura()">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <label style="font-weight: 600; font-size: 0.88rem;">
+                  Nombre de la Asignatura
+                  <input
+                    type="text"
+                    [(ngModel)]="nuevaAsignaturaNombre"
+                    name="nuevaAsignaturaNombre"
+                    list="materiasSugeridasList"
+                    required
+                    placeholder="Ej. Matemáticas, Robótica, Ciencias..."
+                    style="width: 100%; margin-top: 0.35rem;"
+                  />
+                  <datalist id="materiasSugeridasList">
+                    @for (m of catalogoMaterias(); track m) {
+                      <option [value]="m"></option>
+                    }
+                  </datalist>
+                </label>
 
-              <label>
-                Docente Titular (Profesor)
-                <select [(ngModel)]="nuevoProfesorId" name="nuevoProfesorId" required>
-                  <option [ngValue]="0">Elige un docente titular...</option>
-                  @for (p of docentes(); track p.id) {
-                    <option [ngValue]="p.id">{{ p.nombre }} (C.C. {{ p.cedula || p.usuario }})</option>
-                  }
-                </select>
-              </label>
+                <label style="font-weight: 600; font-size: 0.88rem;">
+                  Docente Titular Asignado
+                  <select [(ngModel)]="nuevoProfesorId" name="nuevoProfesorId" required style="width: 100%; margin-top: 0.35rem;">
+                    <option [ngValue]="0">Selecciona docente...</option>
+                    @for (p of docentes(); track p.id) {
+                      <option [ngValue]="p.id">{{ p.nombre }} (C.C. {{ p.cedula || p.usuario }})</option>
+                    }
+                  </select>
+                </label>
 
-              <label>
-                Grado / Curso Escolar
-                <select [(ngModel)]="nuevoGrupoId" name="nuevoGrupoId" required>
-                  <option [ngValue]="0">Elige un grado o grupo...</option>
-                  @for (g of catalogoGrupos(); track g.id) {
-                    <option [ngValue]="g.id">{{ g.nombre }} ({{ g.estudiantesCount }} alumnos)</option>
-                  }
-                </select>
-              </label>
+                <label style="font-weight: 600; font-size: 0.88rem;">
+                  Grado / Curso Escolar (Amarre)
+                  <select [(ngModel)]="nuevoGrupoId" name="nuevoGrupoId" required style="width: 100%; margin-top: 0.35rem;">
+                    <option [ngValue]="0">Selecciona grado...</option>
+                    @for (g of catalogoGrupos(); track g.id) {
+                      <option [ngValue]="g.id">{{ g.nombre }} ({{ g.estudiantesCount }} alumnos)</option>
+                    }
+                  </select>
+                </label>
+              </div>
 
-              <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal" [disabled]="guardandoAsignatura()">
-                  {{ guardandoAsignatura() ? 'Vinculando…' : '✔ Crear y Amarrar al Docente y Curso' }}
-                </button>
+              <div style="display: flex; gap: 0.65rem; justify-content: flex-end;">
                 <button type="button" class="btn-secundario" (click)="mostrarFormAsignatura.set(false)">Cancelar</button>
+                <button type="submit" class="btn-principal" [disabled]="guardandoAsignatura()">
+                  {{ guardandoAsignatura() ? 'Amarrando materia…' : '✔ Guardar y Amarrar Curso' }}
+                </button>
               </div>
             </form>
           </div>
         }
 
-        <!-- Buscador de Asignaturas -->
-        <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1rem;">
-          <div class="entre" style="gap: 1rem; flex-wrap: wrap;">
-            <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-              Asignaturas Curriculares Activas
-            </span>
-            <div style="min-width: 16rem;">
-              <input
-                type="text"
-                [(ngModel)]="busquedaAsignaturas"
-                placeholder="🔍 Buscar asignatura, docente o grado..."
-                style="width: 100%;"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabla de Asignaturas con Slider -->
+        <!-- Tabla de Asignaturas Creadas y Amarradas -->
         <div class="gradebook-wrapper">
           <div class="gradebook-table-container">
             <table class="gradebook-table">
               <thead>
                 <tr>
                   <th>Asignatura</th>
-                  <th>Docente Titular</th>
+                  <th>Docente Responsable</th>
                   <th>Cédula Docente</th>
-                  <th>Cursos / Grados Vinculados</th>
+                  <th>Cursos Vinculados</th>
                 </tr>
               </thead>
               <tbody>
@@ -409,11 +421,190 @@ import { mensajeError } from '../core/errores';
           </form>
         </div>
       }
+
+      <!-- ======================================================================
+           TAB 4: GESTIÓN DE HORARIOS DE CLASES POR GRADO Y MATERIA
+           ====================================================================== -->
+      @if (tabActiva() === 'horarios') {
+        <div class="card" style="margin-bottom: 1.25rem; background: var(--bg-surface); border-left: 4px solid var(--primary); padding: 1rem 1.25rem;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-size: 1.4rem;">📅</span>
+            <div>
+              <strong style="font-size: 0.95rem; color: var(--text-primary);">Competencia Directiva: Planificación y Programación Horaria</strong>
+              <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.2rem 0 0;">
+                Teniendo en cuenta los cursos y las materias que se ven, Dirección programa las franjas horarias semanales con validación inteligente de choques entre docentes y grados.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de Selección de Curso para el Horario -->
+        <div class="card card-glass" style="padding: 1rem 1.25rem; margin-bottom: 1.25rem; border: 1px solid var(--border);">
+          <div class="entre" style="gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+              <span style="font-size: 1.25rem;">🏫</span>
+              <strong style="font-size: 0.92rem; color: var(--text-primary);">Seleccionar Grado Escolar:</strong>
+              <select [(ngModel)]="horarioGrupoId" (ngModelChange)="cambiarGrupoHorario($event)" style="padding: 0.4rem 0.85rem; border-radius: var(--radius-pill); font-weight: 700; border: 1px solid var(--border); max-width: 100%;">
+                @for (g of catalogoGrupos(); track g.id) {
+                  <option [ngValue]="g.id">Grado {{ g.nombre }}</option>
+                }
+              </select>
+              <span class="badge badge-azul" style="font-size: 0.78rem;">
+                {{ materiasDelCurso().length }} materias vinculadas al curso
+              </span>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button type="button" class="btn-principal btn-sm" (click)="mostrarFormHorario.set(!mostrarFormHorario())">
+                {{ mostrarFormHorario() ? '✕ Cancelar' : '➕ Programar Clase en Horario' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulario para Crear / Programar Bloque de Horario -->
+        @if (mostrarFormHorario()) {
+          <div class="card" style="margin-bottom: 1.5rem; border-top: 4px solid var(--primary); padding: 1.5rem;">
+            <h3 style="margin-top: 0; margin-bottom: 0.35rem; font-size: 1.15rem;">
+              ➕ Programar Nuevo Bloque de Horario para Grado {{ nombreGrupoSeleccionado() }}
+            </h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+              Las materias disponibles corresponden a las asignadas curricularmente a este curso con su respectivo docente titular.
+            </p>
+
+            <form (ngSubmit)="guardarHorario()">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Materia que se ve en el Curso *
+                  <select [(ngModel)]="nuevoHorarioMateriaId" name="nuevoHorarioMateriaId" required style="width: 100%; margin-top: 0.35rem; max-width: 100%; text-overflow: ellipsis;" (ngModelChange)="alSeleccionarMateria($event)">
+                    <option [ngValue]="0">Selecciona materia del curso...</option>
+                    @for (m of materiasDelCurso(); track m.materiaId) {
+                      <option [ngValue]="m.materiaId">{{ m.materiaNombre }} (Prof: {{ m.profesorNombre }})</option>
+                    }
+                  </select>
+                </label>
+
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Día de la Semana *
+                  <select [(ngModel)]="nuevoHorarioDia" name="nuevoHorarioDia" required style="width: 100%; margin-top: 0.35rem; max-width: 100%;">
+                    <option [ngValue]="1">Lunes</option>
+                    <option [ngValue]="2">Martes</option>
+                    <option [ngValue]="3">Miércoles</option>
+                    <option [ngValue]="4">Jueves</option>
+                    <option [ngValue]="5">Viernes</option>
+                    <option [ngValue]="6">Sábado</option>
+                  </select>
+                </label>
+
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Franja Horaria Sugerida
+                  <select [(ngModel)]="franjaPredefinida" name="franjaPredefinida" (ngModelChange)="aplicarFranja($event)" style="width: 100%; margin-top: 0.35rem; max-width: 100%;">
+                    <option value="">Personalizada...</option>
+                    <option value="07:00-08:30">Bloque 1: 07:00 - 08:30</option>
+                    <option value="08:30-10:00">Bloque 2: 08:30 - 10:00</option>
+                    <option value="10:30-12:00">Bloque 3: 10:30 - 12:00</option>
+                    <option value="12:30-14:00">Bloque 4: 12:30 - 14:00</option>
+                    <option value="14:00-15:30">Bloque 5: 14:00 - 15:30</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Hora de Inicio (HH:mm) *
+                  <input type="time" [(ngModel)]="nuevoHorarioHoraInicio" name="nuevoHorarioHoraInicio" required style="width: 100%; margin-top: 0.35rem; max-width: 100%;" />
+                </label>
+
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Hora de Fin (HH:mm) *
+                  <input type="time" [(ngModel)]="nuevoHorarioHoraFin" name="nuevoHorarioHoraFin" required style="width: 100%; margin-top: 0.35rem; max-width: 100%;" />
+                </label>
+
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Aula / Salón / Espacio
+                  <input type="text" [(ngModel)]="nuevoHorarioAula" name="nuevoHorarioAula" placeholder="Ej. Aula 101, Lab Química" style="width: 100%; margin-top: 0.35rem; max-width: 100%;" />
+                </label>
+
+                <label style="font-weight: 600; font-size: 0.85rem; min-width: 0;">
+                  Notas / Observación
+                  <input type="text" [(ngModel)]="nuevoHorarioNotas" name="nuevoHorarioNotas" placeholder="Ej. Traer bata blanca" style="width: 100%; margin-top: 0.35rem; max-width: 100%;" />
+                </label>
+              </div>
+
+              <div style="display: flex; gap: 0.65rem; justify-content: flex-end; flex-wrap: wrap;">
+                <button type="button" class="btn-secundario" (click)="mostrarFormHorario.set(false)">Cancelar</button>
+                <button type="submit" class="btn-principal" [disabled]="guardandoHorario()">
+                  {{ guardandoHorario() ? 'Guardando…' : '✔ Guardar Bloque en Horario' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+        <!-- Grilla Semanal Visual del Horario en Dirección -->
+        <div class="card card-glass" style="padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+          <div class="entre" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <span style="font-size: 1.2rem;">🗓️</span>
+              <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">
+                Distribución Semanal: Grado {{ nombreGrupoSeleccionado() }}
+              </h3>
+              <span class="badge badge-azul" style="font-size: 0.78rem;">{{ horarios().length }} bloques activos</span>
+            </div>
+            <span class="badge badge-verde" style="font-size: 0.82rem; font-weight: 700;">{{ totalHorasCurso() }} Horas Académicas</span>
+          </div>
+
+          <!-- Matriz Semanal con Scroll Horizontal Protegido -->
+          <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(210px, 1fr)); gap: 0.85rem; align-items: start; min-width: 1050px;">
+              @for (dia of diasSemana; track dia.num) {
+                <div style="background: var(--bg-surface-solid); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column; min-width: 0; box-shadow: var(--shadow-sm);">
+                  <div style="background: var(--bg-surface); padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 0.9rem; color: var(--text-primary);">{{ dia.nombre }}</strong>
+                    <span class="badge badge-azul" style="font-size: 0.7rem; font-weight: 700;">{{ clasesDiaDirector(dia.num).length }}</span>
+                  </div>
+
+                  <div style="padding: 0.65rem; display: flex; flex-direction: column; gap: 0.6rem;">
+                    @for (c of clasesDiaDirector(dia.num); track c.id) {
+                      <div
+                        style="background: var(--bg-surface); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: var(--radius-sm); padding: 0.65rem; min-width: 0; overflow: hidden;"
+                        [style.border-left-color]="colorMateria(c.materiaNombre)"
+                      >
+                        <div class="entre" style="margin-bottom: 0.25rem; font-size: 0.75rem; font-family: monospace; gap: 0.35rem; align-items: center;">
+                          <span class="badge" style="font-size: 0.72rem; padding: 0.15rem 0.4rem; white-space: nowrap;">🕒 {{ c.horaInicio }} - {{ c.horaFin }}</span>
+                          <button
+                            type="button"
+                            (click)="eliminarHorario(c.id)"
+                            style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); cursor: pointer; color: var(--grade-bajo); font-size: 0.72rem; font-weight: bold; padding: 0.15rem 0.4rem; line-height: 1;"
+                            title="Eliminar este bloque del horario"
+                          >
+                            ✕ Borrar
+                          </button>
+                        </div>
+                        <strong style="display: block; font-size: 0.88rem; color: var(--text-primary); margin: 0.2rem 0; word-break: break-word; overflow-wrap: break-word; line-height: 1.35;">{{ c.materiaNombre }}</strong>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary); display: block; word-break: break-word; overflow-wrap: break-word; line-height: 1.3;">👨‍🏫 {{ c.profesorNombre }}</span>
+                        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.3rem;">
+                          <span style="font-size: 0.7rem; color: var(--text-primary); background: var(--bg-hover); padding: 0.1rem 0.4rem; border-radius: var(--radius-sm); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;">🏫 {{ c.aula || 'Aula 101' }}</span>
+                          @if (c.notas) {
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-style: italic; word-break: break-word;" [title]="c.notas">📌 {{ c.notas }}</span>
+                          }
+                        </div>
+                      </div>
+                    } @empty {
+                      <span style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block; padding: 1.5rem 0;">Sin clases programadas</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
     </section>
   `
 })
 export class DirectorComponent implements OnInit {
-  tabActiva = signal<'docentes' | 'asignaturas' | 'matricula'>('docentes');
+  tabActiva = signal<'docentes' | 'asignaturas' | 'matricula' | 'horarios'>('docentes');
 
   aviso = signal('');
   error = signal('');
@@ -466,6 +657,37 @@ export class DirectorComponent implements OnInit {
   modalClave = signal<{ nombre: string; documento: string; grupo: string; clave: string } | null>(null);
   copiado = signal(false);
 
+  // Horarios de Clases
+  horarios = signal<HorarioClaseItem[]>([]);
+  horarioGrupoId = 0;
+  materiasDelCurso = signal<Array<{
+    materiaId: number;
+    materiaNombre: string;
+    profesorId: number;
+    profesorNombre: string;
+    profesorCedula: string;
+  }>>([]);
+  mostrarFormHorario = signal(false);
+  guardandoHorario = signal(false);
+
+  // Campos Formulario Horario
+  nuevoHorarioMateriaId = 0;
+  nuevoHorarioProfesorId = 0;
+  nuevoHorarioDia = 1;
+  nuevoHorarioHoraInicio = '07:00';
+  nuevoHorarioHoraFin = '08:30';
+  nuevoHorarioAula = 'Aula 101';
+  nuevoHorarioNotas = '';
+  franjaPredefinida = '07:00-08:30';
+
+  diasSemana = [
+    { num: 1, nombre: 'Lunes' },
+    { num: 2, nombre: 'Martes' },
+    { num: 3, nombre: 'Miércoles' },
+    { num: 4, nombre: 'Jueves' },
+    { num: 5, nombre: 'Viernes' }
+  ];
+
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
@@ -491,8 +713,13 @@ export class DirectorComponent implements OnInit {
   cargarCatalogo(): void {
     this.api.catalogoAcademicoDirector().subscribe({
       next: (data) => {
-        this.catalogoGrupos.set(data.grupos || []);
+        const grps = data.grupos || [];
+        this.catalogoGrupos.set(grps);
         this.catalogoMaterias.set(data.materiasSugeridas || []);
+        if (grps.length > 0 && !this.horarioGrupoId) {
+          this.horarioGrupoId = grps[0].id;
+          this.cambiarGrupoHorario(this.horarioGrupoId);
+        }
       },
       error: () => {}
     });
@@ -630,11 +857,130 @@ export class DirectorComponent implements OnInit {
     });
   }
 
+  // =========================================================================
+  // GESTIÓN DE HORARIOS DE CLASES
+  // =========================================================================
+  nombreGrupoSeleccionado = computed(() => {
+    const g = this.catalogoGrupos().find(x => x.id === this.horarioGrupoId);
+    return g ? g.nombre : '';
+  });
+
+  totalHorasCurso = computed(() => {
+    return this.horarios().length * 1.5; // Estimado promedio en bloques
+  });
+
+  cambiarGrupoHorario(grupoId: number): void {
+    this.horarioGrupoId = grupoId;
+    this.cargarMateriasDelCurso(grupoId);
+    this.cargarHorariosDelCurso(grupoId);
+  }
+
+  cargarMateriasDelCurso(grupoId: number): void {
+    this.api.directorMateriasPorCurso(grupoId).subscribe({
+      next: (res) => this.materiasDelCurso.set(res.materias || []),
+      error: () => {}
+    });
+  }
+
+  cargarHorariosDelCurso(grupoId: number): void {
+    this.api.directorListarHorarios(grupoId).subscribe({
+      next: (res) => this.horarios.set(res),
+      error: (err) => this.error.set(mensajeError(err))
+    });
+  }
+
+  clasesDiaDirector(diaNum: number): HorarioClaseItem[] {
+    return this.horarios().filter(c => c.diaSemana === diaNum);
+  }
+
+  alSeleccionarMateria(materiaId: number): void {
+    const m = this.materiasDelCurso().find(x => x.materiaId === materiaId);
+    if (m) {
+      this.nuevoHorarioProfesorId = m.profesorId;
+    }
+  }
+
+  aplicarFranja(franja: string): void {
+    if (!franja) return;
+    const parts = franja.split('-');
+    if (parts.length === 2) {
+      this.nuevoHorarioHoraInicio = parts[0];
+      this.nuevoHorarioHoraFin = parts[1];
+    }
+  }
+
+  guardarHorario(): void {
+    this.aviso.set('');
+    this.error.set('');
+
+    if (!this.horarioGrupoId || !this.nuevoHorarioMateriaId) {
+      this.error.set('Selecciona la materia que se dicta en este grado.');
+      return;
+    }
+
+    if (!this.nuevoHorarioHoraInicio || !this.nuevoHorarioHoraFin) {
+      this.error.set('Indica la hora de inicio y fin.');
+      return;
+    }
+
+    this.guardandoHorario.set(true);
+    this.api.directorCrearHorario({
+      grupoId: this.horarioGrupoId,
+      materiaId: this.nuevoHorarioMateriaId,
+      profesorId: this.nuevoHorarioProfesorId,
+      diaSemana: this.nuevoHorarioDia,
+      horaInicio: this.nuevoHorarioHoraInicio,
+      horaFin: this.nuevoHorarioHoraFin,
+      aula: this.nuevoHorarioAula.trim() || undefined,
+      notas: this.nuevoHorarioNotas.trim() || undefined
+    }).subscribe({
+      next: (res) => {
+        this.guardandoHorario.set(false);
+        this.mostrarFormHorario.set(false);
+        this.aviso.set(res.mensaje);
+        this.nuevoHorarioNotas = '';
+        this.cargarHorariosDelCurso(this.horarioGrupoId);
+        setTimeout(() => this.aviso.set(''), 5000);
+      },
+      error: (err) => {
+        this.guardandoHorario.set(false);
+        this.error.set(mensajeError(err));
+      }
+    });
+  }
+
+  eliminarHorario(id: number): void {
+    if (!confirm('¿Seguro que deseas eliminar esta clase del horario?')) return;
+    this.api.directorEliminarHorario(id).subscribe({
+      next: (res) => {
+        this.aviso.set(res.mensaje);
+        this.cargarHorariosDelCurso(this.horarioGrupoId);
+        setTimeout(() => this.aviso.set(''), 4000);
+      },
+      error: (err) => this.error.set(mensajeError(err))
+    });
+  }
+
   copiarClave(clave: string): void {
     if (!clave) return;
     navigator.clipboard.writeText(clave).then(() => {
       this.copiado.set(true);
       setTimeout(() => this.copiado.set(false), 2000);
     });
+  }
+
+  colorMateria(nombre: string): string {
+    const n = (nombre || '').toLowerCase();
+    if (n.includes('mate') || n.includes('álgebra') || n.includes('geom') || n.includes('cálculo')) return '#2563eb';
+    if (n.includes('física')) return '#0284c7';
+    if (n.includes('química') || n.includes('biol') || n.includes('cien') || n.includes('natur')) return '#059669';
+    if (n.includes('leng') || n.includes('castell') || n.includes('espa') || n.includes('liter')) return '#7c3aed';
+    if (n.includes('inglés') || n.includes('idioma') || n.includes('biling')) return '#0891b2';
+    if (n.includes('tecno') || n.includes('infor') || n.includes('sist') || n.includes('robót')) return '#4f46e5';
+    if (n.includes('socia') || n.includes('histo') || n.includes('geogr') || n.includes('democr')) return '#d97706';
+    if (n.includes('filo') || n.includes('ética') || n.includes('relig') || n.includes('convi')) return '#0d9488';
+    if (n.includes('ed') && (n.includes('fís') || n.includes('depor'))) return '#e11d48';
+    if (n.includes('art') || n.includes('músic') || n.includes('danz') || n.includes('teatr')) return '#c026d3';
+    return '#0d9488';
   }
 }

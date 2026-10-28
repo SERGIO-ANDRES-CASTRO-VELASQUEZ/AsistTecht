@@ -403,6 +403,53 @@ public static class DbSeeder
                 db.SaveChanges();
             }
         }
+
+        // Seeder de Horarios de Clases si no existen
+        if (!db.HorariosClase.Any())
+        {
+            var horarios = new List<HorarioClase>
+            {
+                // Grado 10A - Lunes (1)
+                new() { GrupoId = grupo.Id, MateriaId = materia.Id, ProfesorId = materia.ProfesorId, DiaSemana = 1, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Aula 101", Notas = "Traer calculadora científica" },
+                new() { GrupoId = grupo.Id, MateriaId = matQuimica.Id, ProfesorId = matQuimica.ProfesorId, DiaSemana = 1, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Laboratorio de Ciencias", Notas = "Traer bata blanca" },
+                new() { GrupoId = grupo.Id, MateriaId = matCastellano.Id, ProfesorId = matCastellano.ProfesorId, DiaSemana = 1, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Aula 101", Notas = "Lectura obra literaria" },
+                new() { GrupoId = grupo.Id, MateriaId = matIngles.Id, ProfesorId = matIngles.ProfesorId, DiaSemana = 1, HoraInicio = "12:30", HoraFin = "14:00", Aula = "Sala de Bilingüismo" },
+
+                // Grado 10A - Martes (2)
+                new() { GrupoId = grupo.Id, MateriaId = matFisica.Id, ProfesorId = matFisica.ProfesorId, DiaSemana = 2, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = materia.Id, ProfesorId = materia.ProfesorId, DiaSemana = 2, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = matTecno.Id, ProfesorId = matTecno.ProfesorId, DiaSemana = 2, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Sala de Cómputo 1" },
+                new() { GrupoId = grupo.Id, MateriaId = matCastellano.Id, ProfesorId = matCastellano.ProfesorId, DiaSemana = 2, HoraInicio = "12:30", HoraFin = "14:00", Aula = "Aula 101" },
+
+                // Grado 10A - Miércoles (3)
+                new() { GrupoId = grupo.Id, MateriaId = matQuimica.Id, ProfesorId = matQuimica.ProfesorId, DiaSemana = 3, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Laboratorio de Ciencias" },
+                new() { GrupoId = grupo.Id, MateriaId = matFisica.Id, ProfesorId = matFisica.ProfesorId, DiaSemana = 3, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = materia.Id, ProfesorId = materia.ProfesorId, DiaSemana = 3, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = matTecno.Id, ProfesorId = matTecno.ProfesorId, DiaSemana = 3, HoraInicio = "12:30", HoraFin = "14:00", Aula = "Sala de Cómputo 1" },
+
+                // Grado 10A - Jueves (4)
+                new() { GrupoId = grupo.Id, MateriaId = matCastellano.Id, ProfesorId = matCastellano.ProfesorId, DiaSemana = 4, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = matIngles.Id, ProfesorId = matIngles.ProfesorId, DiaSemana = 4, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Sala de Bilingüismo" },
+                new() { GrupoId = grupo.Id, MateriaId = matFisica.Id, ProfesorId = matFisica.ProfesorId, DiaSemana = 4, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Laboratorio de Física" },
+                new() { GrupoId = grupo.Id, MateriaId = materia.Id, ProfesorId = materia.ProfesorId, DiaSemana = 4, HoraInicio = "12:30", HoraFin = "14:00", Aula = "Aula 101" },
+
+                // Grado 10A - Viernes (5)
+                new() { GrupoId = grupo.Id, MateriaId = matTecno.Id, ProfesorId = matTecno.ProfesorId, DiaSemana = 5, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Sala de Cómputo 1" },
+                new() { GrupoId = grupo.Id, MateriaId = matQuimica.Id, ProfesorId = matQuimica.ProfesorId, DiaSemana = 5, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Laboratorio de Ciencias" },
+                new() { GrupoId = grupo.Id, MateriaId = matCastellano.Id, ProfesorId = matCastellano.ProfesorId, DiaSemana = 5, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Aula 101" },
+                new() { GrupoId = grupo.Id, MateriaId = matIngles.Id, ProfesorId = matIngles.ProfesorId, DiaSemana = 5, HoraInicio = "12:30", HoraFin = "14:00", Aula = "Sala de Bilingüismo" },
+
+                // Grado 11A - Lunes (1)
+                new() { GrupoId = g11A.Id, MateriaId = matFisica.Id, ProfesorId = matFisica.ProfesorId, DiaSemana = 1, HoraInicio = "08:30", HoraFin = "10:00", Aula = "Aula 201" },
+                new() { GrupoId = g11A.Id, MateriaId = matTecno.Id, ProfesorId = matTecno.ProfesorId, DiaSemana = 1, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Sala de Cómputo 2" },
+                // Grado 11A - Martes (2)
+                new() { GrupoId = g11A.Id, MateriaId = matQuimica.Id, ProfesorId = matQuimica.ProfesorId, DiaSemana = 2, HoraInicio = "07:00", HoraFin = "08:30", Aula = "Laboratorio de Ciencias" },
+                new() { GrupoId = g11A.Id, MateriaId = matIngles.Id, ProfesorId = matIngles.ProfesorId, DiaSemana = 2, HoraInicio = "10:30", HoraFin = "12:00", Aula = "Sala de Bilingüismo" }
+            };
+
+            db.HorariosClase.AddRange(horarios);
+            db.SaveChanges();
+        }
     }
 
     public static Estudiante Nuevo(int profesorId, int? grupoId, string nombre, string documento, string password)

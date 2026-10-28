@@ -19,6 +19,7 @@ import { PortalAcudienteComponent } from './pages/portal-acudiente.component';
 import { ConvivenciaComponent } from './pages/convivencia.component';
 import { BoletinComponent } from './pages/boletin.component';
 import { AdminComponent } from './pages/admin.component';
+import { HorarioComponent } from './pages/horario.component';
 
 export const routes: Routes = [
   { path: 'ingreso', component: LoginComponent },
@@ -37,11 +38,12 @@ export const routes: Routes = [
     canActivate: [profesorGuard],
     children: [
       { path: '', component: DashboardProfesorComponent },
+      { path: 'horario', component: HorarioComponent },
+      { path: 'planilla', component: PlanillaComponent },
+      { path: 'clase', component: ClaseComponent },
       { path: 'materias', component: MateriasComponent },
       { path: 'grupos', component: GruposComponent },
       { path: 'estudiantes', component: EstudiantesComponent },
-      { path: 'clase', component: ClaseComponent },
-      { path: 'planilla', component: PlanillaComponent },
       { path: 'convivencia', component: ConvivenciaComponent },
       { path: 'historial', component: HistorialComponent },
       { path: 'estudiantes/:id/rostro', component: RostroComponent },
@@ -55,6 +57,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: DashboardDirectorComponent },
       { path: 'profesores', component: DirectorComponent },
+      { path: 'horarios', component: HorarioComponent },
       { path: 'convivencia', component: ConvivenciaComponent },
       { path: 'boletin', component: BoletinComponent },
       { path: 'clave', component: ClaveComponent }
@@ -67,8 +70,9 @@ export const routes: Routes = [
     canActivate: [estudianteGuard],
     children: [
       { path: '', component: QrComponent },
-      { path: 'boletin', component: BoletinComponent },
+      { path: 'horario', component: HorarioComponent },
       { path: 'notas', component: AcademicoComponent },
+      { path: 'boletin', component: BoletinComponent },
       { path: 'convivencia', component: ConvivenciaComponent },
       { path: 'rostro', component: RostroComponent },
       { path: 'clave', component: ClaveComponent }
@@ -80,6 +84,7 @@ export const routes: Routes = [
     canActivate: [acudienteGuard],
     children: [
       { path: '', component: PortalAcudienteComponent },
+      { path: 'horario', component: HorarioComponent },
       { path: 'boletin', component: BoletinComponent },
       { path: 'convivencia', component: ConvivenciaComponent },
       { path: 'clave', component: ClaveComponent }

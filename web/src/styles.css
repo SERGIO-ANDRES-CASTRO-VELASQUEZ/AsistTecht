@@ -1380,7 +1380,7 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1220px) {
   .shell > header {
     flex-direction: row;
     align-items: center;
@@ -2801,7 +2801,7 @@ input:focus, select:focus, textarea:focus {
 /* ==========================================================================
    BREAKPOINTS RESPONSIVOS (MOBILE & TABLET ADAPTATION)
    ========================================================================== */
-@media (max-width: 1180px) {
+@media (max-width: 1220px) {
   .nav-desktop {
     display: none !important;
   }

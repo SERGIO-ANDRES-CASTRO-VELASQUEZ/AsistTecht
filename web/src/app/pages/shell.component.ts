@@ -56,13 +56,16 @@ import { Notificacion, Rol } from '../core/models';
             </a>
           } @else if (auth.rol() === 'Director') {
             <a routerLink="/director" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">
-              <span>📊</span> Dashboard BI
+              <span>📊</span> Dashboard
+            </a>
+            <a routerLink="/director/horarios" routerLinkActive="activo">
+              <span>📅</span> Horarios
             </a>
             <a routerLink="/director/profesores" routerLinkActive="activo">
-              <span>👨‍🏫</span> Planta Docente
+              <span>👨‍🏫</span> Docentes
             </a>
             <a routerLink="/director/convivencia" routerLinkActive="activo">
-              <span>⚖️</span> Convivencia Escolar
+              <span>⚖️</span> Convivencia
             </a>
             <a routerLink="/director/boletin" routerLinkActive="activo">
               <span>📜</span> Boletines
@@ -70,6 +73,9 @@ import { Notificacion, Rol } from '../core/models';
           } @else if (auth.rol() === 'Profesor') {
             <a routerLink="/profesor" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }" (click)="menuGestionAbierto.set(false)">
               <span>📊</span> Dashboard
+            </a>
+            <a routerLink="/profesor/horario" routerLinkActive="activo" (click)="menuGestionAbierto.set(false)">
+              <span>📅</span> Horario
             </a>
             <a routerLink="/profesor/planilla" routerLinkActive="activo" (click)="menuGestionAbierto.set(false)">
               <span>📝</span> Planilla
@@ -109,7 +115,10 @@ import { Notificacion, Rol } from '../core/models';
             </div>
           } @else if (auth.rol() === 'Estudiante') {
             <a routerLink="/estudiante" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">
-              <span>🪪</span> Carnet QR
+              <span>🪪</span> Carnet
+            </a>
+            <a routerLink="/estudiante/horario" routerLinkActive="activo">
+              <span>📅</span> Horario
             </a>
             <a routerLink="/estudiante/notas" routerLinkActive="activo">
               <span>📈</span> Calificaciones
@@ -126,6 +135,9 @@ import { Notificacion, Rol } from '../core/models';
           } @else if (auth.rol() === 'Acudiente') {
             <a routerLink="/acudiente" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">
               <span>👨‍👩‍👧</span> Familia
+            </a>
+            <a routerLink="/acudiente/horario" routerLinkActive="activo">
+              <span>📅</span> Horario
             </a>
             <a routerLink="/acudiente/boletin" routerLinkActive="activo">
               <span>📜</span> Boletín
@@ -371,6 +383,13 @@ import { Notificacion, Rol } from '../core/models';
                   <small>Estadísticas y balance general</small>
                 </div>
               </a>
+              <a routerLink="/director/horarios" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
+                <span class="drawer-link-icono">📅</span>
+                <div class="drawer-link-texto">
+                  <strong>Horarios de Clases</strong>
+                  <small>Programación académica semanal</small>
+                </div>
+              </a>
               <a routerLink="/director/profesores" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
                 <span class="drawer-link-icono">👨‍🏫</span>
                 <div class="drawer-link-texto">
@@ -399,6 +418,13 @@ import { Notificacion, Rol } from '../core/models';
                 <div class="drawer-link-texto">
                   <strong>Mi Dashboard</strong>
                   <small>Alertas de deserción con IA</small>
+                </div>
+              </a>
+              <a routerLink="/profesor/horario" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
+                <span class="drawer-link-icono">📅</span>
+                <div class="drawer-link-texto">
+                  <strong>Mi Horario Semanal</strong>
+                  <small>Clases y salones asignados</small>
                 </div>
               </a>
               <a routerLink="/profesor/planilla" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
@@ -449,6 +475,13 @@ import { Notificacion, Rol } from '../core/models';
                   <small>Código de asistencia personal</small>
                 </div>
               </a>
+              <a routerLink="/estudiante/horario" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
+                <span class="drawer-link-icono">📅</span>
+                <div class="drawer-link-texto">
+                  <strong>Mi Horario de Clases</strong>
+                  <small>Materias y salones de la semana</small>
+                </div>
+              </a>
               <a routerLink="/estudiante/notas" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
                 <span class="drawer-link-icono">📈</span>
                 <div class="drawer-link-texto">
@@ -483,6 +516,13 @@ import { Notificacion, Rol } from '../core/models';
                 <div class="drawer-link-texto">
                   <strong>Portal de la Familia</strong>
                   <small>Seguimiento en vivo de hijos</small>
+                </div>
+              </a>
+              <a routerLink="/acudiente/horario" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">
+                <span class="drawer-link-icono">📅</span>
+                <div class="drawer-link-texto">
+                  <strong>Horario Escolar</strong>
+                  <small>Horario de clases de sus hijos</small>
                 </div>
               </a>
               <a routerLink="/acudiente/boletin" routerLinkActive="activo" (click)="cerrarMenuMovil()" class="drawer-link">

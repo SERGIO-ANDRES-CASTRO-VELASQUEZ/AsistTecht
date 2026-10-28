@@ -301,3 +301,32 @@ export interface BoletinOficial {
   }>;
 }
 
+
+
+export interface HorarioClaseItem {
+  id: number;
+  grupoId: number;
+  grupoNombre: string;
+  materiaId: number;
+  materiaNombre: string;
+  profesorId: number;
+  profesorNombre: string;
+  profesorCedula?: string;
+  diaSemana: number;
+  diaNombre: string;
+  horaInicio: string;
+  horaFin: string;
+  aula?: string;
+  notas?: string;
+}
+
+export interface CrearHorarioRequest {
+  grupoId: number;
+  materiaId: number;
+  profesorId?: number;
+  diaSemana: number;
+  horaInicio: string;
+  horaFin: string;
+  aula?: string;
+  notas?: string;
+}
