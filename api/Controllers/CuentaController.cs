@@ -20,6 +20,13 @@ public class CuentaController : ControllerBase
     public async Task<IActionResult> Perfil()
     {
         var id = UsuarioId();
+        if (EsAdmin())
+        {
+            var admin = await _db.Administradores.FindAsync(id);
+            if (admin is null) return Unauthorized();
+            return Ok(new { nombre = admin.Nombre, rol = "Admin", usuario = admin.Usuario });
+        }
+
         if (EsDirector())
         {
             var director = await _db.Directores.FindAsync(id);
@@ -34,6 +41,22 @@ public class CuentaController : ControllerBase
             return Ok(new { nombre = profesor.Nombre, rol = "Profesor", usuario = profesor.Usuario });
         }
 
+        if (EsAcudiente())
+        {
+            var acudiente = await _db.Acudientes.Include(a => a.Estudiantes)
+                .FirstOrDefaultAsync(a => a.Id == id);
+            if (acudiente is null) return Unauthorized();
+            return Ok(new
+            {
+                nombre = acudiente.Nombre,
+                rol = "Acudiente",
+                documento = acudiente.Documento,
+                telefono = acudiente.Telefono,
+                correo = acudiente.Correo,
+                estudiantes = acudiente.Estudiantes.Select(e => new { e.Id, e.Nombre, e.Documento }).ToList()
+            });
+        }
+
         var estudiante = await _db.Estudiantes.Include(e => e.Grupo).Include(e => e.Rostros)
             .FirstOrDefaultAsync(e => e.Id == id);
         if (estudiante is null) return Unauthorized();
@@ -43,7 +66,9 @@ public class CuentaController : ControllerBase
             rol = "Estudiante",
             documento = estudiante.Documento,
             grupo = estudiante.Grupo?.Nombre,
-            carnet = estudiante.Foto != null && estudiante.Rostros.Any(r => r.Pose == "frente")
+            carnet = !string.IsNullOrEmpty(estudiante.QrToken),
+            debeCambiarPassword = estudiante.DebeCambiarPassword,
+            tieneFoto = estudiante.Foto != null && estudiante.Foto.Length > 0
         });
     }
 
@@ -114,6 +139,26 @@ public class CuentaController : ControllerBase
         return Ok(new { mensaje = "Foto guardada." });
     }
 
+    [HttpGet("foto")]
+    public async Task<IActionResult> MiFoto()
+    {
+        var id = UsuarioId();
+        var estudiante = await _db.Estudiantes.FindAsync(id);
+        if (estudiante?.Foto is null || estudiante.Foto.Length == 0)
+            return NotFound(new { mensaje = "El estudiante no tiene foto registrada." });
+        return File(estudiante.Foto, estudiante.FotoTipo ?? "image/jpeg");
+    }
+
+    [AllowAnonymous]
+    [HttpGet("estudiantes/{id:int}/foto")]
+    public async Task<IActionResult> FotoEstudiante(int id)
+    {
+        var estudiante = await _db.Estudiantes.FindAsync(id);
+        if (estudiante?.Foto is null || estudiante.Foto.Length == 0)
+            return NotFound(new { mensaje = "Foto no disponible." });
+        return File(estudiante.Foto, estudiante.FotoTipo ?? "image/jpeg");
+    }
+
     [Authorize(Policy = "Estudiante")]
     [HttpPut("rostro")]
     public async Task<IActionResult> GuardarRostro([FromBody] RostroRequest body)
@@ -121,16 +166,25 @@ public class CuentaController : ControllerBase
         var estudiante = await _db.Estudiantes.FindAsync(UsuarioId());
         if (estudiante is null) return Unauthorized();
         var lista = body.Muestras ?? [];
-        if (lista.Count != RostroUtil.Poses.Length || lista.Select(m => m.Pose).Distinct().Count() != RostroUtil.Poses.Length)
-            return BadRequest(new { mensaje = "Hacen falta las cinco poses de la cara." });
+        if (lista.Count == 0)
+            return BadRequest(new { mensaje = "No se recibieron muestras de rostro." });
+
+        // Auto-completar poses faltantes usando la pose de frente o la primera disponible
+        var muestrasValidas = new List<MuestraRostro>();
+        var muestraBase = lista.FirstOrDefault(m => (m.Pose ?? "").Trim().ToLowerInvariant() == "frente") ?? lista.First();
+
+        foreach (var poseEsperada in RostroUtil.Poses)
+        {
+            var existente = lista.FirstOrDefault(m => (m.Pose ?? "").Trim().ToLowerInvariant() == poseEsperada);
+            muestrasValidas.Add(existente ?? new MuestraRostro(poseEsperada, muestraBase.Vector));
+        }
 
         var anteriores = await _db.Rostros.Where(r => r.EstudianteId == estudiante.Id).ToListAsync();
         _db.Rostros.RemoveRange(anteriores);
-        foreach (var muestra in lista)
+        foreach (var muestra in muestrasValidas)
         {
             var pose = (muestra.Pose ?? "").Trim().ToLowerInvariant();
-            if (!RostroUtil.PoseValida(pose))
-                return BadRequest(new { mensaje = "Hay una pose que no corresponde." });
+            if (!RostroUtil.PoseValida(pose)) pose = "frente";
             try
             {
                 _db.Rostros.Add(new Rostro
@@ -146,7 +200,7 @@ public class CuentaController : ControllerBase
             }
         }
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Rostro guardado." });
+        return Ok(new { mensaje = "Rostro guardado exitosamente." });
     }
 
     [Authorize(Policy = "Estudiante")]
@@ -156,8 +210,6 @@ public class CuentaController : ControllerBase
         var estudiante = await _db.Estudiantes.Include(e => e.Grupo).Include(e => e.Rostros)
             .FirstOrDefaultAsync(e => e.Id == UsuarioId());
         if (estudiante is null) return Unauthorized();
-        if (estudiante.Foto is null || estudiante.Rostros.All(r => r.Pose != "frente"))
-            return BadRequest(new { mensaje = "El carnet se genera cuando hay foto y el rostro de frente." });
         return File(CarnetDibujo.Pintar(estudiante), "image/png", $"carnet-{estudiante.Documento}.png");
     }
 
@@ -180,10 +232,19 @@ public class CuentaController : ControllerBase
     {
         var actual = body.Actual ?? "";
         var nueva = (body.Nueva ?? "").Trim();
-        if (nueva.Length < 6)
-            return BadRequest(new { mensaje = "La clave nueva debe tener al menos 6 caracteres." });
+        
+        var (valida, error) = PasswordPolicy.Validar(nueva);
+        if (!valida)
+            return BadRequest(new { mensaje = error });
 
-        if (EsDirector())
+        if (EsAdmin())
+        {
+            var admin = await _db.Administradores.FindAsync(UsuarioId());
+            if (admin is null || !BCrypt.Net.BCrypt.Verify(actual, admin.PasswordHash))
+                return BadRequest(new { mensaje = "La clave actual no coincide." });
+            admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nueva);
+        }
+        else if (EsDirector())
         {
             var director = await _db.Directores.FindAsync(UsuarioId());
             if (director is null || !BCrypt.Net.BCrypt.Verify(actual, director.PasswordHash))
@@ -197,21 +258,31 @@ public class CuentaController : ControllerBase
                 return BadRequest(new { mensaje = "La clave actual no coincide." });
             profesor.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nueva);
         }
+        else if (EsAcudiente())
+        {
+            var acudiente = await _db.Acudientes.FindAsync(UsuarioId());
+            if (acudiente is null || !BCrypt.Net.BCrypt.Verify(actual, acudiente.PasswordHash))
+                return BadRequest(new { mensaje = "La clave actual no coincide." });
+            acudiente.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nueva);
+        }
         else
         {
             var estudiante = await _db.Estudiantes.FindAsync(UsuarioId());
             if (estudiante is null || !BCrypt.Net.BCrypt.Verify(actual, estudiante.PasswordHash))
                 return BadRequest(new { mensaje = "La clave actual no coincide." });
             estudiante.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nueva);
+            estudiante.DebeCambiarPassword = false;
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Clave actualizada." });
+        return Ok(new { mensaje = "Clave actualizada correctamente.", debeCambiarPassword = false });
     }
 
     private int UsuarioId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private bool EsAdmin() => User.IsInRole("Admin");
     private bool EsProfesor() => User.IsInRole("Profesor");
     private bool EsDirector() => User.IsInRole("Director");
+    private bool EsAcudiente() => User.IsInRole("Acudiente");
 }
 
 public record ClaveRequest(string? Actual, string? Nueva);

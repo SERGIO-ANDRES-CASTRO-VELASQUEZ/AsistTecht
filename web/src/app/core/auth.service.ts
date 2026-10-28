@@ -15,6 +15,22 @@ export class AuthService {
     return this.sesion()?.rol ?? null;
   }
 
+  token(): string | null {
+    return this.sesion()?.token ?? null;
+  }
+
+  debeCambiarPassword(): boolean {
+    return !!this.sesion()?.debeCambiarPassword;
+  }
+
+  actualizarDebeCambiarPassword(valor: boolean): void {
+    const s = this.sesion();
+    if (s) {
+      const actualizada = { ...s, debeCambiarPassword: valor };
+      this.guardar(actualizada);
+    }
+  }
+
   login(usuario: string, password: string, rol: Rol) {
     return this.http
       .post<SesionUsuario>('/api/auth/login', { usuario, password, rol })

@@ -39,9 +39,14 @@ La IP del computador se ve con `hostname -I`.
 | Dirección | director | AsisTecht2026 |
 | Profesor | profesor | AsisQR2026 |
 | Estudiante | 1000000001 | Estudiante2026 |
-| Estudiante | 1000000002 | Estudiante2026 |
+| Acudiente | acudiente | Acudiente2026 |
 
-Ya existen la materia Matemáticas, el grupo 10A y esos dos estudiantes. Conviene cambiar las claves desde la pantalla Clave antes de usarlo en el colegio.
+## Aplicación Móvil (.APK para Android)
+
+La plataforma cuenta con descarga directa de la aplicación móvil oficial para Android:
+- **Descarga directa:** `http://localhost:8080/downloads/asisttecht-movil.apk` (o desde el botón `📱 App APK` en la cabecera o login).
+- **Compatibilidad:** Android 8.0 hasta 14+.
+- **Características móviles:** Pase de lista con cámara trasera del celular (QR y Biometría Facial), carnet digital de estudiante en el bolsillo y notificaciones familiares en tiempo real.
 
 ## Cómo se usa
 

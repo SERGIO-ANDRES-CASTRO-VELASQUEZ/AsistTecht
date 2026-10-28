@@ -33,9 +33,11 @@ public class EstudiantesController : ControllerBase
                 e.Documento,
                 e.GrupoId,
                 grupo = e.Grupo != null ? e.Grupo.Nombre : null,
+                acudiente = e.Acudiente != null ? e.Acudiente.Nombre : null,
+                activo = e.Activo,
                 tieneFoto = e.Foto != null,
                 tieneRostro = e.Rostros.Any(r => r.Pose == "frente"),
-                carnet = e.Foto != null && e.Rostros.Any(r => r.Pose == "frente")
+                carnet = !string.IsNullOrEmpty(e.QrToken)
             })
             .ToListAsync();
         return Ok(lista);
@@ -46,13 +48,24 @@ public class EstudiantesController : ControllerBase
     {
         var nombre = (body.Nombre ?? "").Trim();
         var documento = (body.Documento ?? "").Trim();
-        var password = body.Password ?? "";
+        var password = (body.Password ?? "").Trim();
+
         if (nombre.Length == 0 || nombre.Length > 120)
             return BadRequest(new { mensaje = "Escribe el nombre del estudiante." });
         if (!DocumentoValido(documento))
             return BadRequest(new { mensaje = "El documento debe tener entre 5 y 15 dígitos." });
-        if (password.Length < 6)
-            return BadRequest(new { mensaje = "La clave debe tener al menos 6 caracteres." });
+
+        // Si no se proporcionó clave o se solicita dinámica, se genera automáticamente
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            password = PasswordPolicy.GenerarClaveDinamica();
+        }
+        else
+        {
+            var (valida, error) = PasswordPolicy.Validar(password);
+            if (!valida)
+                return BadRequest(new { mensaje = error });
+        }
 
         if (await _db.Estudiantes.AnyAsync(e => e.Documento == documento))
             return BadRequest(new { mensaje = "Ese documento ya está registrado." });
@@ -61,9 +74,41 @@ public class EstudiantesController : ControllerBase
             return BadRequest(new { mensaje = "Elige un grupo válido." });
 
         var estudiante = DbSeeder.Nuevo(ProfesorId(), body.GrupoId, nombre, documento, password);
+        estudiante.DebeCambiarPassword = true; // Todo estudiante creado debe cambiar su clave dinámica en el primer acceso
         _db.Estudiantes.Add(estudiante);
         await _db.SaveChangesAsync();
-        return Ok(new { estudiante.Id, estudiante.Nombre, estudiante.Documento, estudiante.GrupoId });
+
+        return Ok(new
+        {
+            estudiante.Id,
+            estudiante.Nombre,
+            estudiante.Documento,
+            estudiante.GrupoId,
+            claveTemporal = password,
+            debeCambiarPassword = true
+        });
+    }
+
+    [HttpPost("{estudianteId:int}/clave-dinamica")]
+    public async Task<IActionResult> ResetClaveDinamica(int estudianteId)
+    {
+        var estudiante = await _db.Estudiantes
+            .FirstOrDefaultAsync(e => e.Id == estudianteId && e.ProfesorId == ProfesorId());
+        if (estudiante is null)
+            return NotFound(new { mensaje = "No se encontró el estudiante." });
+
+        var nuevaClave = PasswordPolicy.GenerarClaveDinamica();
+        estudiante.PasswordHash = BCrypt.Net.BCrypt.HashPassword(nuevaClave);
+        estudiante.DebeCambiarPassword = true;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            mensaje = "Nueva clave dinámica generada con éxito.",
+            claveTemporal = nuevaClave,
+            estudianteId = estudiante.Id,
+            estudianteNombre = estudiante.Nombre
+        });
     }
 
     [HttpPut("{estudianteId:int}")]
@@ -84,13 +129,25 @@ public class EstudiantesController : ControllerBase
         estudiante.GrupoId = body.GrupoId;
         if (!string.IsNullOrWhiteSpace(body.Password))
         {
-            if (body.Password.Trim().Length < 6)
-                return BadRequest(new { mensaje = "La clave debe tener al menos 6 caracteres." });
+            var (valida, error) = PasswordPolicy.Validar(body.Password.Trim());
+            if (!valida)
+                return BadRequest(new { mensaje = error });
             estudiante.PasswordHash = BCrypt.Net.BCrypt.HashPassword(body.Password.Trim());
+            estudiante.DebeCambiarPassword = true;
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Estudiante actualizado." });
+        return Ok(new { mensaje = "Estudiante actualizado con éxito." });
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{estudianteId:int}/foto")]
+    public async Task<IActionResult> ObtenerFoto(int estudianteId)
+    {
+        var estudiante = await _db.Estudiantes.FindAsync(estudianteId);
+        if (estudiante?.Foto is null || estudiante.Foto.Length == 0)
+            return NotFound(new { mensaje = "Foto no disponible." });
+        return File(estudiante.Foto, estudiante.FotoTipo ?? "image/jpeg");
     }
 
     [HttpPut("{estudianteId:int}/foto")]
@@ -131,24 +188,31 @@ public class EstudiantesController : ControllerBase
             .FirstOrDefaultAsync(e => e.Id == estudianteId);
         if (estudiante is null || await Visible(estudianteId) is null)
             return NotFound(new { mensaje = "No se encontró el estudiante." });
-        if (estudiante.Foto is null || estudiante.Rostros.All(r => r.Pose != "frente"))
-            return BadRequest(new { mensaje = "El carnet se genera cuando hay foto y el rostro de frente." });
         return File(CarnetDibujo.Pintar(estudiante), "image/png", $"carnet-{estudiante.Documento}.png");
     }
 
     private async Task<IActionResult> GuardarMuestras(Estudiante estudiante, List<MuestraRostro>? muestras)
     {
         var lista = muestras ?? [];
-        if (lista.Count != RostroUtil.Poses.Length || lista.Select(m => m.Pose).Distinct().Count() != RostroUtil.Poses.Length)
-            return BadRequest(new { mensaje = "Hacen falta las cinco poses de la cara." });
+        if (lista.Count == 0)
+            return BadRequest(new { mensaje = "No se recibieron muestras del rostro." });
+
+        // Auto-completar poses faltantes usando la pose de frente o la primera disponible
+        var muestrasValidas = new List<MuestraRostro>();
+        var muestraBase = lista.FirstOrDefault(m => (m.Pose ?? "").Trim().ToLowerInvariant() == "frente") ?? lista.First();
+
+        foreach (var poseEsperada in RostroUtil.Poses)
+        {
+            var existente = lista.FirstOrDefault(m => (m.Pose ?? "").Trim().ToLowerInvariant() == poseEsperada);
+            muestrasValidas.Add(existente ?? new MuestraRostro(poseEsperada, muestraBase.Vector));
+        }
 
         var anteriores = await _db.Rostros.Where(r => r.EstudianteId == estudiante.Id).ToListAsync();
         _db.Rostros.RemoveRange(anteriores);
-        foreach (var muestra in lista)
+        foreach (var muestra in muestrasValidas)
         {
             var pose = (muestra.Pose ?? "").Trim().ToLowerInvariant();
-            if (!RostroUtil.PoseValida(pose))
-                return BadRequest(new { mensaje = "Hay una pose que no corresponde." });
+            if (!RostroUtil.PoseValida(pose)) pose = "frente";
             string vector;
             try
             {
@@ -161,7 +225,7 @@ public class EstudiantesController : ControllerBase
             _db.Rostros.Add(new Rostro { EstudianteId = estudiante.Id, Pose = pose, Vector = vector });
         }
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Rostro guardado." });
+        return Ok(new { mensaje = "Rostro guardado exitosamente." });
     }
 
     private async Task<Estudiante?> Visible(int estudianteId)

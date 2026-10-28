@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AsisQR.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "Profesor")]
+[Authorize]
 [Route("api")]
 public class CatalogoController : ControllerBase
 {
@@ -16,6 +16,7 @@ public class CatalogoController : ControllerBase
     public CatalogoController(AppDb db) => _db = db;
 
     [HttpGet("resumen")]
+    [Authorize(Policy = "Profesor")]
     public async Task<IActionResult> Resumen()
     {
         var id = ProfesorId();
@@ -31,6 +32,7 @@ public class CatalogoController : ControllerBase
     }
 
     [HttpGet("materias")]
+    [Authorize(Policy = "Profesor")]
     public async Task<IActionResult> Materias()
     {
         var id = ProfesorId();
@@ -48,48 +50,35 @@ public class CatalogoController : ControllerBase
     }
 
     [HttpPost("materias")]
-    public async Task<IActionResult> CrearMateria([FromBody] NombreRequest body)
+    [Authorize(Policy = "Profesor")]
+    public IActionResult CrearMateria([FromBody] NombreRequest body)
     {
-        var nombre = LimpiarNombre(body.Nombre, 120);
-        if (nombre is null)
-            return BadRequest(new { mensaje = "Escribe el nombre de la materia." });
-
-        var id = ProfesorId();
-        if (await _db.Materias.AnyAsync(m => m.ProfesorId == id && m.Nombre == nombre))
-            return BadRequest(new { mensaje = "Ya tienes una materia con ese nombre." });
-
-        var materia = new Materia { Nombre = nombre, ProfesorId = id };
-        _db.Materias.Add(materia);
-        await _db.SaveChangesAsync();
-        return Ok(new { materia.Id, materia.Nombre });
+        return BadRequest(new { mensaje = "Los docentes no gestionan asignaturas. La creación y asignación de materias corresponde a Dirección y Administración." });
     }
 
     [HttpDelete("materias/{materiaId:int}")]
-    public async Task<IActionResult> BorrarMateria(int materiaId)
+    [Authorize(Policy = "Profesor")]
+    public IActionResult BorrarMateria(int materiaId)
     {
-        var materia = await MateriaPropia(materiaId);
-        if (materia is null) return NotFound(new { mensaje = "No se encontró la materia." });
-        if (await _db.Sesiones.AnyAsync(s => s.MateriaId == materiaId))
-            return BadRequest(new { mensaje = "La materia ya tiene clases registradas." });
-
-        _db.Materias.Remove(materia);
-        await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Materia eliminada." });
+        return BadRequest(new { mensaje = "Los docentes no gestionan asignaturas. La eliminación y reasignación corresponde a Dirección." });
     }
 
     [HttpGet("grupos")]
     public async Task<IActionResult> Grupos()
     {
-        var id = ProfesorId();
+        var id = 0;
+        if (User.IsInRole("Profesor"))
+            int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out id);
+
         var grupos = await _db.Grupos
             .OrderBy(g => g.Nombre)
             .Select(g => new
             {
                 g.Id,
                 g.Nombre,
-                propio = g.ProfesorId == id,
+                propio = id > 0 && g.ProfesorId == id,
                 estudiantes = g.Estudiantes.Count,
-                materiaIds = g.Materias.Where(m => m.Materia!.ProfesorId == id).Select(m => m.MateriaId).ToList(),
+                materiaIds = id > 0 ? g.Materias.Where(m => m.Materia!.ProfesorId == id).Select(m => m.MateriaId).ToList() : new List<int>(),
                 materias = g.Materias.Select(m => m.Materia!.Nombre).OrderBy(n => n).ToList()
             })
             .ToListAsync();

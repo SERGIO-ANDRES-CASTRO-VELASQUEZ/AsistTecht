@@ -86,17 +86,17 @@ public class SesionesController : ControllerBase
         if (sesion is null)
             return NotFound(new { mensaje = "No se encontró la clase." });
 
-        var estudiante = await _db.Estudiantes.FirstOrDefaultAsync(e => e.QrToken == token);
+        var estudiante = await _db.Estudiantes.FirstOrDefaultAsync(e => e.QrToken == token || e.Documento == token);
         if (estudiante is null)
-            return Ok(new { estado = EstadoMarca.NoEncontrado, nombre = (string?)null });
+            return Ok(new { estado = EstadoMarca.NoEncontrado, nombre = (string?)null, documento = (string?)null });
 
         if (estudiante.GrupoId != sesion.GrupoId)
-            return Ok(new { estado = EstadoMarca.NoPertenece, nombre = estudiante.Nombre });
+            return Ok(new { estado = EstadoMarca.NoPertenece, nombre = estudiante.Nombre, documento = estudiante.Documento, estudianteId = estudiante.Id });
 
         var ya = await _db.Asistencias
             .FirstOrDefaultAsync(a => a.SesionId == sesion.Id && a.EstudianteId == estudiante.Id);
         if (ya is not null)
-            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = estudiante.Nombre });
+            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = estudiante.Nombre, documento = estudiante.Documento, estudianteId = estudiante.Id });
 
         _db.Asistencias.Add(new Asistencia
         {
@@ -112,10 +112,10 @@ public class SesionesController : ControllerBase
         }
         catch (DbUpdateException)
         {
-            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = estudiante.Nombre });
+            return Ok(new { estado = EstadoMarca.YaRegistrado, nombre = estudiante.Nombre, documento = estudiante.Documento, estudianteId = estudiante.Id });
         }
 
-        return Ok(new { estado = EstadoMarca.Anotado, nombre = estudiante.Nombre });
+        return Ok(new { estado = EstadoMarca.Anotado, nombre = estudiante.Nombre, documento = estudiante.Documento, estudianteId = estudiante.Id });
     }
 
     [HttpPost("{sesionId:int}/reconocer")]

@@ -152,9 +152,14 @@ public class PlanillaController : ControllerBase
 
         var nota = await _db.Notas
             .FirstOrDefaultAsync(n => n.ColumnaId == columna.Id && n.EstudianteId == estudiante.Id);
+        var esCambio = false;
         if (body.Valor is null)
         {
-            if (nota is not null) _db.Notas.Remove(nota);
+            if (nota is not null)
+            {
+                _db.Notas.Remove(nota);
+                esCambio = true;
+            }
         }
         else if (nota is null)
         {
@@ -164,14 +169,45 @@ public class PlanillaController : ControllerBase
                 EstudianteId = estudiante.Id,
                 Valor = body.Valor.Value
             });
+            esCambio = true;
         }
-        else
+        else if (nota.Valor != body.Valor.Value)
         {
             nota.Valor = body.Valor.Value;
+            esCambio = true;
+        }
+
+        if (esCambio && body.Valor.HasValue)
+        {
+            var materiaNombre = columna.Materia?.Nombre ?? "Asignatura";
+            _db.Notificaciones.Add(new Notificacion
+            {
+                RolDestinatario = "Estudiante",
+                UsuarioDestinatarioId = estudiante.Id,
+                Titulo = $"Nueva Nota en {materiaNombre}",
+                Mensaje = $"Tu docente registró {body.Valor.Value:0.0} en '{columna.Nombre}'.",
+                Tipo = "Academica",
+                Link = "/estudiante/boletin",
+                Fecha = DateTime.UtcNow
+            });
+
+            if (estudiante.AcudienteId.HasValue)
+            {
+                _db.Notificaciones.Add(new Notificacion
+                {
+                    RolDestinatario = "Acudiente",
+                    UsuarioDestinatarioId = estudiante.AcudienteId.Value,
+                    Titulo = $"Calificación de {estudiante.Nombre}",
+                    Mensaje = $"Se registró nota {body.Valor.Value:0.0} en {materiaNombre} ({columna.Nombre}).",
+                    Tipo = "Academica",
+                    Link = "/acudiente/boletin",
+                    Fecha = DateTime.UtcNow
+                });
+            }
         }
 
         await _db.SaveChangesAsync();
-        return Ok(new { mensaje = "Nota guardada." });
+        return Ok(new { mensaje = "Nota guardada y sincronizada en tiempo real." });
     }
 
     private async Task<List<object>> Estudiantes(int grupoId)
@@ -179,7 +215,7 @@ public class PlanillaController : ControllerBase
         return await _db.Estudiantes
             .Where(e => e.GrupoId == grupoId)
             .OrderBy(e => e.Nombre)
-            .Select(e => (object)new { e.Id, e.Nombre })
+            .Select(e => (object)new { e.Id, e.Nombre, e.Documento })
             .ToListAsync();
     }
 

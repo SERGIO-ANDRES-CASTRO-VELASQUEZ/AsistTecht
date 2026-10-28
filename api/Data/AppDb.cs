@@ -6,6 +6,7 @@ public class AppDb : DbContext
 {
     public AppDb(DbContextOptions<AppDb> options) : base(options) { }
 
+    public DbSet<Administrador> Administradores => Set<Administrador>();
     public DbSet<Director> Directores => Set<Director>();
     public DbSet<Profesor> Profesores => Set<Profesor>();
     public DbSet<Estudiante> Estudiantes => Set<Estudiante>();
@@ -17,6 +18,10 @@ public class AppDb : DbContext
     public DbSet<MateriaGrupo> MateriaGrupos => Set<MateriaGrupo>();
     public DbSet<Sesion> Sesiones => Set<Sesion>();
     public DbSet<Asistencia> Asistencias => Set<Asistencia>();
+    public DbSet<Acudiente> Acudientes => Set<Acudiente>();
+    public DbSet<ObservacionConvivencia> ObservacionesConvivencia => Set<ObservacionConvivencia>();
+    public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
+    public DbSet<SolicitudClave> SolicitudesClave => Set<SolicitudClave>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,5 +115,28 @@ public class AppDb : DbContext
             .HasOne(n => n.Columna).WithMany(c => c.Notas).HasForeignKey(n => n.ColumnaId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<Nota>()
             .HasOne(n => n.Estudiante).WithMany().HasForeignKey(n => n.EstudianteId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Acudiente>().HasIndex(a => a.Documento).IsUnique();
+        modelBuilder.Entity<Acudiente>().Property(a => a.Nombre).HasMaxLength(120);
+        modelBuilder.Entity<Acudiente>().Property(a => a.Documento).HasMaxLength(20);
+
+        modelBuilder.Entity<Estudiante>()
+            .HasOne(e => e.Acudiente)
+            .WithMany(a => a.Estudiantes)
+            .HasForeignKey(e => e.AcudienteId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ObservacionConvivencia>().Property(o => o.Titulo).HasMaxLength(120);
+        modelBuilder.Entity<ObservacionConvivencia>().Property(o => o.Tipo).HasMaxLength(30);
+        modelBuilder.Entity<ObservacionConvivencia>()
+            .HasOne(o => o.Estudiante)
+            .WithMany(e => e.Observaciones)
+            .HasForeignKey(o => o.EstudianteId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ObservacionConvivencia>()
+            .HasOne(o => o.Profesor)
+            .WithMany()
+            .HasForeignKey(o => o.ProfesorId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

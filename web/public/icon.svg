@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e6b52"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <g filter="url(#shadow)">
+    <!-- Birrete / Graduation Cap -->
+    <path d="M256 130 L390 190 L256 250 L122 190 Z" fill="#ffffff" opacity="0.95"/>
+    <path d="M176 220 L176 290 Q256 340 336 290 L336 220 Q256 265 176 220 Z" fill="#ecfdf5"/>
+    <path d="M380 200 L380 300 Q370 310 360 300 L360 200 Z" fill="#fbbf24"/>
+    <circle cx="370" cy="310" r="14" fill="#fbbf24"/>
+    
+    <!-- Texto GIR -->
+    <text x="256" y="420" font-family="'Outfit', system-ui, sans-serif" font-weight="900" font-size="96" fill="#ffffff" text-anchor="middle" letter-spacing="4">GIR</text>
+  </g>
+</svg>

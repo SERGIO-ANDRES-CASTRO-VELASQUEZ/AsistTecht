@@ -19,35 +19,24 @@ public class ProfesoresController : ControllerBase
     {
         var lista = await _db.Profesores
             .OrderBy(p => p.Nombre)
-            .Select(p => new { p.Id, p.Nombre, p.Usuario })
+            .Select(p => new
+            {
+                p.Id,
+                p.Nombre,
+                p.Usuario,
+                cedula = p.Usuario,
+                p.Activo,
+                materiasCount = p.Materias.Count,
+                gruposCount = p.Grupos.Count
+            })
             .ToListAsync();
         return Ok(lista);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Crear([FromBody] ProfesorRequest body)
+    public IActionResult Crear([FromBody] ProfesorRequest body)
     {
-        var nombre = (body.Nombre ?? "").Trim();
-        var usuario = (body.Usuario ?? "").Trim().ToLowerInvariant();
-        var password = body.Password ?? "";
-        if (nombre.Length is 0 or > 120)
-            return BadRequest(new { mensaje = "Escribe el nombre del profesor." });
-        if (usuario.Length is < 3 or > 40 || usuario.Any(char.IsWhiteSpace))
-            return BadRequest(new { mensaje = "El usuario debe tener entre 3 y 40 caracteres, sin espacios." });
-        if (password.Length < 6)
-            return BadRequest(new { mensaje = "La clave debe tener al menos 6 caracteres." });
-        if (await _db.Profesores.AnyAsync(p => p.Usuario == usuario))
-            return BadRequest(new { mensaje = "Ese usuario ya existe." });
-
-        var profesor = new Profesor
-        {
-            Nombre = nombre,
-            Usuario = usuario,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
-        };
-        _db.Profesores.Add(profesor);
-        await _db.SaveChangesAsync();
-        return Ok(new { profesor.Id, profesor.Nombre, profesor.Usuario });
+        return BadRequest(new { mensaje = "El perfil de Dirección no crea usuarios docentes. La creación y activación de docentes se realiza exclusivamente por el Administrador con Cédula de Ciudadanía." });
     }
 }
 

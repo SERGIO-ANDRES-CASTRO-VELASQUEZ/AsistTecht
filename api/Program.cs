@@ -4,14 +4,50 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
     throw new InvalidOperationException("Jwt:Key debe tener al menos 32 caracteres.");
 
-builder.Services.AddDbContext<AppDb>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+// Pool de DbContext optimizado para soportar 1000+ conexiones simultáneas sin saturar memoria
+builder.Services.AddDbContextPool<AppDb>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")), poolSize: 128);
+
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+
+// Control de tráfico y mitigación de sobrecarga para soportar 1000+ usuarios concurrentes
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsync("{\"mensaje\":\"Demasiadas peticiones simultáneas. Por favor espera unos segundos.\"}");
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        return RateLimitPartition.GetConcurrencyLimiter(
+            partitionKey: "global_concurrency",
+            factory: _ => new ConcurrencyLimiterOptions
+            {
+                PermitLimit = 1000,
+                QueueLimit = 1000,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            });
+    });
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -31,9 +67,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
     options.AddPolicy("Profesor", policy => policy.RequireRole("Profesor"));
     options.AddPolicy("Estudiante", policy => policy.RequireRole("Estudiante"));
     options.AddPolicy("Director", policy => policy.RequireRole("Director"));
+    options.AddPolicy("Acudiente", policy => policy.RequireRole("Acudiente"));
+    options.AddPolicy("AdminODirector", policy => policy.RequireRole("Admin", "Director"));
 });
 
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -64,6 +103,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseResponseCompression();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
