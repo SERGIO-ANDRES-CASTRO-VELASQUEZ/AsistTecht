@@ -6,10 +6,11 @@ import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { Estudiante, Grupo } from '../core/models';
 import { mensajeError } from '../core/errores';
+import { TerminosCheckComponent } from './terminos-check.component';
 
 @Component({
   selector: 'app-estudiantes',
-  imports: [FormsModule, RouterLink, CommonModule],
+  imports: [FormsModule, RouterLink, CommonModule, TerminosCheckComponent],
   template: `
     <section class="pagina">
       <div class="entre" style="margin-bottom: 1.25rem;">
@@ -99,8 +100,12 @@ import { mensajeError } from '../core/errores';
               </label>
             </div>
 
+            <div style="margin-top: 1rem;">
+              <app-terminos-check [(aceptado)]="terminosAceptados" />
+            </div>
+
             <div class="acciones" style="margin-top: 1rem;">
-              <button class="btn-principal" type="submit">
+              <button class="btn-principal" type="submit" [disabled]="!terminosAceptados">
                 <span>✔</span> Guardar Matrícula
               </button>
               <button type="button" class="btn-secundario" (click)="mostrarRegistro.set(false)">
@@ -251,7 +256,7 @@ export class EstudiantesComponent implements OnInit {
   nombre = '';
   documento = '';
   password = '';
-  grupoId = 0;
+  terminosAceptados = false;  grupoId = 0;
   filtro = 0;
   busqueda = '';
   grupos = signal<Grupo[]>([]);
@@ -327,6 +332,10 @@ export class EstudiantesComponent implements OnInit {
   crear(): void {
     this.aviso.set('');
     this.error.set('');
+    if (!this.terminosAceptados) {
+      this.error.set('Debes aceptar los términos y condiciones para crear el usuario.');
+      return;
+    }
     if (!this.nombre.trim() || !this.documento.trim() || !this.grupoId) {
       this.error.set('El nombre, documento y grupo son obligatorios.');
       return;
@@ -341,6 +350,7 @@ export class EstudiantesComponent implements OnInit {
         this.nombre = '';
         this.documento = '';
         this.password = '';
+        this.terminosAceptados = false;
         this.mostrarRegistro.set(false);
         this.cargar();
 

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
 import { Estudiante, Grupo, ResumenAdmin, SolicitudClave } from '../core/models';
 import { mensajeError } from '../core/errores';
+import { TerminosCheckComponent } from './terminos-check.component';
 
 interface ToastNotif {
   id: number;
@@ -15,7 +16,7 @@ interface ToastNotif {
 
 @Component({
   selector: 'app-admin',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TerminosCheckComponent],
   template: `
     <section class="pagina">
       <!-- Contenedor Flotante de Notificaciones Pop-up (Toasts) -->
@@ -770,8 +771,10 @@ interface ToastNotif {
                 </div>
               </label>
 
+              <app-terminos-check [(aceptado)]="terminosEstudiante" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal" [disabled]="guardandoEstudiante()">
+                <button type="submit" class="btn-principal" [disabled]="guardandoEstudiante() || !terminosEstudiante">
                   {{ guardandoEstudiante() ? 'Guardando…' : '✔ Guardar Matrícula con Clave Dinámica' }}
                 </button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormEstudiante.set(false)">Cancelar</button>
@@ -940,8 +943,10 @@ interface ToastNotif {
                 <input [(ngModel)]="docUsuario" name="docUsuario" inputmode="numeric" required placeholder="Ej. 1075283910 (Solo números)" />
               </label>
 
+              <app-terminos-check [(aceptado)]="terminosDocente" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal">Crear Docente con Cédula y Clave Dinámica</button>
+                <button type="submit" class="btn-principal" [disabled]="!terminosDocente">Crear Docente con Cédula y Clave Dinámica</button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormDocente.set(false)">Cancelar</button>
               </div>
             </form>
@@ -1126,8 +1131,10 @@ interface ToastNotif {
                 </div>
               </div>
 
+              <app-terminos-check [(aceptado)]="terminosAcudiente" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal">Guardar Acudiente y Amarrar Hijos</button>
+                <button type="submit" class="btn-principal" [disabled]="!terminosAcudiente">Guardar Acudiente y Amarrar Hijos</button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormAcudiente.set(false)">Cancelar</button>
               </div>
             </form>
@@ -1365,6 +1372,10 @@ export class AdminComponent implements OnInit {
   estNombre = '';
   estDocumento = '';
   estGrupoId = 0;
+
+  terminosEstudiante = false;
+  terminosDocente = false;
+  terminosAcudiente = false;
 
   // Modal para crear grupo rápido
   mostrarModalNuevoGrupo = signal(false);
@@ -1674,6 +1685,10 @@ export class AdminComponent implements OnInit {
 
   // Estudiantes
   crearEstudiante(): void {
+    if (!this.terminosEstudiante) {
+      this.mostrarToast('alerta', 'Términos y Condiciones', 'Debes aceptar los términos y condiciones para crear el usuario.');
+      return;
+    }
     if (!this.estNombre.trim() || !this.estDocumento.trim()) {
       this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento son obligatorios.');
       return;
@@ -1696,6 +1711,7 @@ export class AdminComponent implements OnInit {
         );
         this.estNombre = '';
         this.estDocumento = '';
+        this.terminosEstudiante = false;
         this.mostrarFormEstudiante.set(false);
         this.cargarEstudiantes();
         this.api.adminResumen().subscribe({ next: r => this.resumen.set(r) });
@@ -1772,6 +1788,10 @@ export class AdminComponent implements OnInit {
   // Docentes
   crearDocente(): void {
     const cedula = this.docUsuario.trim();
+    if (!this.terminosDocente) {
+      this.mostrarToast('alerta', 'Términos y Condiciones', 'Debes aceptar los términos y condiciones para crear el usuario.');
+      return;
+    }
     if (!this.docNombre.trim() || !cedula) {
       this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y cédula de ciudadanía son obligatorios.');
       return;
@@ -1787,6 +1807,7 @@ export class AdminComponent implements OnInit {
         this.mostrarToast('exito', 'Docente Creado', `Profesor ${creado.nombre} registrado con éxito con Cédula ${creado.usuario}.`);
         this.docNombre = '';
         this.docUsuario = '';
+        this.terminosDocente = false;
         this.mostrarFormDocente.set(false);
         this.api.adminProfesores().subscribe({ next: p => this.profesores.set(p) });
         this.api.adminResumen().subscribe({ next: r => this.resumen.set(r) });
@@ -1826,6 +1847,10 @@ export class AdminComponent implements OnInit {
   }
 
   crearAcudiente(): void {
+    if (!this.terminosAcudiente) {
+      this.mostrarToast('alerta', 'Términos y Condiciones', 'Debes aceptar los términos y condiciones para crear el usuario.');
+      return;
+    }
     if (!this.acudNombre.trim() || !this.acudDocumento.trim()) {
       this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento del acudiente son obligatorios.');
       return;
@@ -1852,6 +1877,7 @@ export class AdminComponent implements OnInit {
         this.acudTelefono = '';
         this.acudCorreo = '';
         this.hijosSeleccionados.clear();
+        this.terminosAcudiente = false;
         this.mostrarFormAcudiente.set(false);
         this.api.adminAcudientes().subscribe({ next: a => this.acudientes.set(a) });
         this.cargarEstudiantes();
