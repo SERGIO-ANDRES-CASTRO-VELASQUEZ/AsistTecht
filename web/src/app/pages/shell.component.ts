@@ -10,30 +10,14 @@ import { Notificacion, Rol } from '../core/models';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   template: `
     <div class="shell">
-      <!-- Barra Superior Institucional (Demostración de Roles y Periodo) -->
+      <!-- Barra Superior Institucional Oficial -->
       <div class="role-switcher-banner no-print">
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 0.75rem;">
-          <span class="pulsing-dot"></span>
-          <span><strong>Año Lectivo 2026</strong> · Periodo 1 en Curso</span>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-          <span style="font-size: 0.75rem; color: var(--text-muted);">Demostración de Roles:</span>
-          <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Admin'" (click)="cambiarRolRapido('admin', 'Admin2026*', 'Admin', '/admin')">
-            👑 Admin
-          </button>
-          <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Director'" (click)="cambiarRolRapido('director', 'AsisTecht2026', 'Director', '/director')">
-            🏛️ Dirección
-          </button>
-          <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Profesor'" (click)="cambiarRolRapido('profesor', 'AsisQR2026', 'Profesor', '/profesor')">
-            👨‍🏫 Docente
-          </button>
-          <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Estudiante'" (click)="cambiarRolRapido('1000000001', 'Estudiante2026', 'Estudiante', '/estudiante')">
-            🎓 Estudiantes (Laura)
-          </button>
-          <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Acudiente'" (click)="cambiarRolRapido('acudiente', 'Acudiente2026', 'Acudiente', '/acudiente')">
-            👨‍👩‍👧 Familia (Elena)
-          </button>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="pulsing-dot"></span>
+            <span><strong>Año Lectivo 2026</strong> · Periodo 1 en Curso</span>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">Gimnasio José Eustasio Rivera</span>
         </div>
       </div>
 
@@ -224,6 +208,11 @@ import { Notificacion, Rol } from '../core/models';
                     ✓ Todo leído
                   </button>
                 }
+                @if (notificaciones().length > 0) {
+                  <button type="button" class="btn-accion-sm" (click)="vaciarNotificaciones()" title="Eliminar todas las notificaciones" style="color: var(--grade-bajo); border-color: rgba(239, 68, 68, 0.35);">
+                    🗑️ Vaciar
+                  </button>
+                }
                 <button type="button" class="btn-cerrar-drawer" style="width: 28px; height: 28px; font-size: 0.85rem;" (click)="mostrarPanelNotif.set(false)" title="Cerrar">✕</button>
               </div>
             </div>
@@ -268,11 +257,16 @@ import { Notificacion, Rol } from '../core/models';
                         }
                       </div>
                       <p class="notif-item-mensaje">{{ n.mensaje }}</p>
-                      <div class="notif-item-meta">
+                      <div class="notif-item-meta" style="display: flex; justify-content: space-between; align-items: center;">
                         <span class="notif-item-tiempo">{{ n.fecha }}</span>
-                        @if (n.link) {
-                          <span class="notif-item-enlace">Ir a sección ➔</span>
-                        }
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                          @if (n.link) {
+                            <span class="notif-item-enlace">Ir a sección ➔</span>
+                          }
+                          <button type="button" class="btn-eliminar-notif" (click)="eliminarNotificacion(n, $event)" title="Eliminar esta notificación">
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -326,28 +320,6 @@ import { Notificacion, Rol } from '../core/models';
                 <span class="badge badge-verde" style="font-size: 0.68rem;">{{ auth.rol() }}</span>
                 <span style="font-size: 0.72rem; color: var(--text-muted);">Conectado</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Selector de Demostración de Roles Móvil (Limpio y Accesible) -->
-          <div class="drawer-demo-roles">
-            <span class="drawer-seccion-titulo">Cambiar Rol (Demostración)</span>
-            <div class="drawer-roles-grid">
-              <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Admin'" (click)="cambiarRolRapido('admin', 'Admin2026*', 'Admin', '/admin')">
-                👑 Admin
-              </button>
-              <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Director'" (click)="cambiarRolRapido('director', 'AsisTecht2026', 'Director', '/director')">
-                🏛️ Dirección
-              </button>
-              <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Profesor'" (click)="cambiarRolRapido('profesor', 'AsisQR2026', 'Profesor', '/profesor')">
-                👨‍🏫 Docente
-              </button>
-              <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Estudiante'" (click)="cambiarRolRapido('1000000001', 'Estudiante2026', 'Estudiante', '/estudiante')">
-                🎓 Estudiantes
-              </button>
-              <button type="button" class="btn-role-switch" [class.activo]="auth.rol() === 'Acudiente'" (click)="cambiarRolRapido('acudiente', 'Acudiente2026', 'Acudiente', '/acudiente')">
-                👨‍👩‍👧 Familia
-              </button>
             </div>
           </div>
 
@@ -896,14 +868,25 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  cambiarRolRapido(usr: string, pass: string, rol: Rol, destino: string): void {
-    this.auth.login(usr, pass, rol).subscribe({
+  eliminarNotificacion(n: Notificacion, event: MouseEvent): void {
+    event.stopPropagation();
+    this.api.eliminarNotificacion(n.id).subscribe({
       next: () => {
-        this.mostrarPanelNotif.set(false);
-        this.cerrarMenuMovil();
-        this.cargarNotificaciones();
-        this.verificarFotoPerfil();
-        void this.router.navigateByUrl(destino);
+        const actualizadas = this.notificaciones().filter(item => item.id !== n.id);
+        this.notificaciones.set(actualizadas);
+        if (!n.leida) {
+          this.noLeidas.set(Math.max(0, this.noLeidas() - 1));
+        }
+      }
+    });
+  }
+
+  vaciarNotificaciones(): void {
+    if (!confirm('¿Deseas eliminar todas las notificaciones?')) return;
+    this.api.vaciarNotificaciones().subscribe({
+      next: () => {
+        this.notificaciones.set([]);
+        this.noLeidas.set(0);
       }
     });
   }

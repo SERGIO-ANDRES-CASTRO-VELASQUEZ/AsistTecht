@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
-import { DashboardProfesor, DiagnosticoRiesgoIa } from '../core/models';
+import { DashboardProfesor, DiagnosticoRiesgoIa, EstudianteFalla } from '../core/models';
 import { mensajeError } from '../core/errores';
 
 @Component({
@@ -20,8 +20,8 @@ import { mensajeError } from '../core/errores';
         <div class="entre" style="align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
           <div>
             <h1 style="font-size: 1.85rem; margin-bottom: 0.35rem;">Panel de Gestión Académica</h1>
-            <p style="font-size: 0.95rem; color: var(--text-secondary); max-width: 44rem; margin: 0;">
-              Control de asistencia por QR y reconocimiento facial, registro de notas en planilla digital y copiloto de IA para prevención de deserción.
+            <p style="font-size: 0.95rem; color: var(--text-secondary); max-width: 46rem; margin: 0;">
+              Control de asistencia por QR y reconocimiento facial, análisis profundo de ausentismo escolar, planilla digital y copiloto de IA para prevención de deserción.
             </p>
           </div>
 
@@ -44,7 +44,7 @@ import { mensajeError } from '../core/errores';
       @if (cargando()) {
         <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
           <div class="pulsing-dot" style="margin: 0 auto 0.75rem; width: 14px; height: 14px;"></div>
-          <p class="lead" style="margin: 0;">Cargando métricas de tus cursos y procesando alertas de aula...</p>
+          <p class="lead" style="margin: 0;">Cargando métricas de tus cursos y procesando alertas de ausentismo y aula...</p>
         </div>
       } @else if (data()) {
         <!-- KPIs del Profesor -->
@@ -63,7 +63,7 @@ import { mensajeError } from '../core/errores';
             <div class="kpi-info">
               <span class="kpi-titulo">Estudiantes Totales</span>
               <strong class="kpi-numero">{{ data()!.kpis.totalEstudiantes }}</strong>
-              <span class="kpi-desc">Alumnos bajo tu seguimiento</span>
+              <span class="kpi-desc">Bajo tu seguimiento académico</span>
             </div>
           </div>
 
@@ -72,7 +72,16 @@ import { mensajeError } from '../core/errores';
             <div class="kpi-info">
               <span class="kpi-titulo">Asistencia Hoy</span>
               <strong class="kpi-numero" style="color: var(--grade-superior);">{{ data()!.kpis.asistenciaHoy }}%</strong>
-              <span class="kpi-desc">{{ data()!.kpis.presentesHoy }} presencias registradas</span>
+              <span class="kpi-desc">{{ data()!.kpis.presentesHoy }} en aula · {{ data()!.kpis.fallasHoy || 0 }} faltas</span>
+            </div>
+          </div>
+
+          <div class="kpi-banner alerta">
+            <div class="kpi-icono" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">📉</div>
+            <div class="kpi-info">
+              <span class="kpi-titulo">Ausentismo en Mis Cursos</span>
+              <strong class="kpi-numero" style="color: #ef4444;">{{ data()!.kpis.totalFallasMisCursos || 0 }} fallas</strong>
+              <span class="kpi-desc">Tasa ausentismo: {{ data()!.kpis.tasaAusentismoMisCursos || 0 }}%</span>
             </div>
           </div>
 
@@ -81,7 +90,7 @@ import { mensajeError } from '../core/errores';
             <div class="kpi-info">
               <span class="kpi-titulo">Alertas Académicas (IA)</span>
               <strong class="kpi-numero" style="color: var(--grade-bajo);">{{ data()!.kpis.estudiantesEnRiesgo }}</strong>
-              <span class="kpi-desc">Estudiantes que requieren refuerzo</span>
+              <span class="kpi-desc">Requieren refuerzo pedagógico</span>
             </div>
           </div>
 
@@ -95,7 +104,7 @@ import { mensajeError } from '../core/errores';
           </div>
         </div>
 
-        <!-- Accesos Directos Rápidos (Tiles Dinámicos y Ergonómicos) -->
+        <!-- Accesos Directos Rápidos -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin-bottom: 1.75rem;">
           <a routerLink="/profesor/planilla" class="card card-interactiva" style="text-decoration: none; padding: 1.15rem; display: flex; align-items: center; gap: 0.85rem;">
             <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;">
@@ -138,8 +147,310 @@ import { mensajeError } from '../core/errores';
           </a>
         </div>
 
+        <!-- ========================================================================= -->
+        <!-- GRÁFICAS DE ASISTENCIA Y RENDIMIENTO PARA EL DOCENTE -->
+        <!-- ========================================================================= -->
+        <div class="dashboard-charts-grid">
+          <!-- Tendencia Semanal de Asistencia en las Clases del Docente -->
+          @if (data()!.historicoSemanal && data()!.historicoSemanal!.length > 0) {
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Tendencia Semanal de Asistencia</h2>
+                  <span class="lead">Comportamiento en tus sesiones de clase (últimos 7 días)</span>
+                </div>
+                <span class="badge badge-verde">Mis Clases</span>
+              </div>
+
+              <div class="weekly-bars-container">
+                @for (dia of data()!.historicoSemanal; track dia.fecha) {
+                  <div class="bar-col" [title]="dia.diaNombre + ': ' + dia.presentes + ' presentes, ' + (dia.fallas || 0) + ' fallas (' + dia.porcentaje + '%)'">
+                    <span class="bar-val">{{ dia.porcentaje }}%</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" [style.height.%]="dia.porcentaje"></div>
+                    </div>
+                    <span class="bar-label">{{ dia.diaNombre ? dia.diaNombre.slice(0, 3) : formatearDia(dia.fecha) }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="balance-meta-footer" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                <span>Promedio Semanal: <strong style="color: var(--grade-superior);">{{ promedioSemanal() }}%</strong></span>
+                <span style="font-size: 0.75rem;">Verificación en aula activa</span>
+              </div>
+            </div>
+          }
+
+          <!-- Comparativa de Asistencia por Grupos Asignados -->
+          @if (data()!.asistenciaPorGrupos && data()!.asistenciaPorGrupos!.length > 0) {
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Asistencia por Mis Cursos</h2>
+                  <span class="lead">Comparativa entre los grupos que tienes asignados</span>
+                </div>
+                <span class="badge badge-azul">{{ data()!.asistenciaPorGrupos!.length }} Grupos</span>
+              </div>
+
+              <div class="group-bars-list">
+                @for (grp of data()!.asistenciaPorGrupos; track grp.grupoId) {
+                  <div class="group-bar-item">
+                    <div class="group-bar-header">
+                      <strong>Grado {{ grp.grupoNombre }} ({{ grp.totalEstudiantes }} alumnos)</strong>
+                      <span [style.color]="colorBarraGrupo(grp.porcentajeAsistencia)" style="font-weight: 800;">
+                        {{ grp.porcentajeAsistencia }}% Asist. · <span style="color: #ef4444;">{{ grp.totalFallas }} fallas</span>
+                      </span>
+                    </div>
+                    <div class="group-bar-track">
+                      <div class="group-bar-fill" [class]="claseBarraGrupo(grp.porcentajeAsistencia)" [style.width.%]="grp.porcentajeAsistencia"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <div class="balance-meta-footer" style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                <span>Criterio: <strong style="color: var(--grade-superior);">≥ 85% Óptimo</strong></span>
+                <span style="color: #ef4444; font-weight: 600;">&lt; 75% Requiere Refuerzo</span>
+              </div>
+            </div>
+          }
+
+          <!-- Balance de Notas en Mis Asignaturas -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <h2>Balance Académico de Mis Clases</h2>
+                <span class="lead">Aprobación vs Notas en riesgo en tus materias</span>
+              </div>
+              <span class="badge badge-azul">Periodo Actual</span>
+            </div>
+
+            <div class="balance-stats-row">
+              <div class="balance-stat-item">
+                <strong class="balance-num" style="color: var(--grade-superior);">{{ data()!.distribucionNotas.aprobados }}</strong>
+                <span class="balance-label">Notas Aprobadas (≥ 3.0)</span>
+              </div>
+
+              <div class="balance-divider"></div>
+
+              <div class="balance-stat-item">
+                <strong class="balance-num" style="color: var(--grade-bajo);">{{ data()!.distribucionNotas.reprobados }}</strong>
+                <span class="balance-label">Notas en Riesgo (&lt; 3.0)</span>
+              </div>
+            </div>
+
+            <div class="balance-progress-track">
+              <div class="balance-progress-fill" [style.width.%]="porcentajeAprobados()"></div>
+            </div>
+
+            <div class="balance-meta-footer">
+              <span><strong>{{ porcentajeAprobados() }}%</strong> Tasa de Aprobación</span>
+              <span>Total Calificaciones: <strong>{{ data()!.distribucionNotas.total }}</strong></span>
+            </div>
+          </div>
+
+          <!-- Métodos Biométricos en Mis Clases -->
+          @if (data()!.distribucionAsistencia) {
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <h2>Métodos Biométricos y Ausencias</h2>
+                  <span class="lead">Verificación QR vs Facial en tus sesiones</span>
+                </div>
+                <span class="badge badge-verde">Biometría Docente</span>
+              </div>
+
+              <div class="distribucion-segmentada-track">
+                <div class="dist-seg qr" [style.width.%]="pctMetodo('qr')" [title]="'QR: ' + data()!.distribucionAsistencia!.origenQr + ' marcas'"></div>
+                <div class="dist-seg rostro" [style.width.%]="pctMetodo('rostro')" [title]="'Rostro: ' + data()!.distribucionAsistencia!.origenRostro + ' marcas'"></div>
+                <div class="dist-seg fallas" [style.width.%]="pctMetodo('fallas')" [title]="'Inasistencias: ' + data()!.distribucionAsistencia!.totalFallas + ' faltas'"></div>
+              </div>
+
+              <div class="dist-leyenda">
+                <div class="dist-leyenda-item">
+                  <span class="dot-color" style="background: #10b981;"></span>
+                  <span>QR: <strong>{{ data()!.distribucionAsistencia!.origenQr }}</strong> ({{ pctMetodo('qr') }}%)</span>
+                </div>
+                <div class="dist-leyenda-item">
+                  <span class="dot-color" style="background: #3b82f6;"></span>
+                  <span>Facial: <strong>{{ data()!.distribucionAsistencia!.origenRostro }}</strong> ({{ pctMetodo('rostro') }}%)</span>
+                </div>
+                <div class="dist-leyenda-item">
+                  <span class="dot-color" style="background: #ef4444;"></span>
+                  <span>Fallas: <strong>{{ data()!.distribucionAsistencia!.totalFallas }}</strong> ({{ pctMetodo('fallas') }}%)</span>
+                </div>
+              </div>
+
+              <div class="balance-meta-footer" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+                <span>Total Registros: <strong>{{ data()!.distribucionAsistencia!.totalEsperados }}</strong></span>
+                <span style="color: var(--grade-superior); font-weight: 700;">{{ data()!.distribucionAsistencia!.porcentajeAsistencia }}% Asistencia Neta</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- MÓDULO EXCLUSIVO: ANÁLISIS PROFUNDO DE ESTUDIANTES QUE FALLAN EN MIS CURSOS -->
+        <!-- ========================================================================= -->
+        <div class="banner-ausentismo-profundo">
+          <div class="entre" style="flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <span style="font-size: 1.6rem;">🚨</span>
+              <div>
+                <h2 style="font-size: 1.35rem; margin: 0; color: #dc2626; font-weight: 800;">
+                  Monitor de Inasistencias en Mis Asignaturas
+                </h2>
+                <small style="color: var(--text-muted);">
+                  Identifica a los estudiantes con faltas reiteradas antes de que alcancen el 25% de pérdida reglamentaria
+                </small>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <span class="badge badge-rojo">Críticos: {{ contarFallasPorRiesgo('Critico') }}</span>
+              <span class="badge badge-amarillo">En Alerta: {{ contarFallasPorRiesgo('Alto') }}</span>
+              <span class="badge badge-verde">Normal: {{ contarFallasPorRiesgo('Bajo') }}</span>
+            </div>
+          </div>
+
+          <!-- Barra de Filtros y Búsqueda -->
+          <div class="ai-radar-filters" style="margin-bottom: 1rem;">
+            <button type="button" class="ai-filter-btn" [class.activo]="filtroFallasRiesgo() === 'todos'" (click)="filtroFallasRiesgo.set('todos')">
+              <span>📋</span> Todos ({{ data()!.estudiantesConFallas?.length || 0 }})
+            </button>
+            <button type="button" class="ai-filter-btn" [class.activo]="filtroFallasRiesgo() === 'Critico'" (click)="filtroFallasRiesgo.set('Critico')">
+              <span style="color: #ef4444;">🔴</span> Crítico ≥ 25% ({{ contarFallasPorRiesgo('Critico') }})
+            </button>
+            <button type="button" class="ai-filter-btn" [class.activo]="filtroFallasRiesgo() === 'Alto'" (click)="filtroFallasRiesgo.set('Alto')">
+              <span style="color: #f59e0b;">🟡</span> Alerta 15-24% ({{ contarFallasPorRiesgo('Alto') }})
+            </button>
+            <button type="button" class="ai-filter-btn" [class.activo]="filtroFallasRiesgo() === 'Medio'" (click)="filtroFallasRiesgo.set('Medio')">
+              <span style="color: #3b82f6;">🔵</span> Leve 1-14% ({{ contarFallasPorRiesgo('Medio') }})
+            </button>
+
+            <!-- Selector de Grupo Asignado -->
+            <div style="min-width: 8.5rem;">
+              <select [ngModel]="filtroFallasGrupo()" (ngModelChange)="filtroFallasGrupo.set($event)"
+                style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-pill); border: 1.5px solid var(--border); background: var(--bg-surface-solid); width: 100%; color: var(--text-primary); cursor: pointer;">
+                <option value="todos">🏫 Todos mis grupos</option>
+                @for (g of gruposDisponibles(); track g) {
+                  <option [value]="g">Grado {{ g }}</option>
+                }
+              </select>
+            </div>
+
+            <!-- Buscador por Texto -->
+            <div style="margin-left: auto; max-width: 16rem; width: 100%;">
+              <input type="text" [ngModel]="busquedaFallas()" (ngModelChange)="busquedaFallas.set($event)" placeholder="🔍 Buscar alumno o acudiente..."
+                style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-pill); border: 1.5px solid var(--border); background: var(--bg-surface-solid); width: 100%; box-sizing: border-box; color: var(--text-primary);" />
+            </div>
+          </div>
+
+          <!-- Tabla Visual de Estudiantes que Fallan -->
+          <div class="tabla-fallas-container">
+            <table class="tabla-fallas">
+              <thead>
+                <tr>
+                  <th>Estudiante</th>
+                  <th>Grado</th>
+                  <th style="text-align: center;">Clases Dictadas / Asistidas</th>
+                  <th style="text-align: center;">Fallas en Mis Clases</th>
+                  <th>% Inasistencia</th>
+                  <th>Nivel de Riesgo</th>
+                  <th>Acudiente / Teléfono</th>
+                  <th style="text-align: right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (est of estudiantesFallasFiltrados(); track est.estudianteId) {
+                  <tr>
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <div class="avatar-circulo" style="width: 34px; height: 34px; font-size: 0.9rem; font-weight: 800; background: var(--primary-light); color: var(--primary); flex-shrink: 0;">
+                          {{ est.nombre.charAt(0) }}
+                        </div>
+                        <div>
+                          <strong style="display: block; color: var(--text-primary);">{{ est.nombre }}</strong>
+                          <span style="font-size: 0.74rem; color: var(--text-muted);">Doc. {{ est.documento }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="badge" style="background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border);">
+                        {{ est.grupo }}
+                      </span>
+                    </td>
+                    <td style="text-align: center;">
+                      <strong>{{ est.totalAsistencias }}</strong> / {{ est.totalSesiones }} clases
+                    </td>
+                    <td style="text-align: center;">
+                      <span class="badge" [class]="est.totalFallas > 0 ? (est.nivelRiesgo === 'Critico' ? 'badge-rojo' : 'badge-amarillo') : 'badge-verde'" style="font-size: 0.88rem; padding: 0.25rem 0.6rem;">
+                        {{ est.totalFallas }}
+                      </span>
+                    </td>
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="barra-fallas-mini" title="Línea roja marca el 25% de pérdida reglamentaria">
+                          <div class="linea-limite-25"></div>
+                          <div class="barra-fallas-fill" [style.width.%]="est.porcentajeInasistencia"
+                            [style.background]="est.porcentajeInasistencia >= 25 ? '#ef4444' : (est.porcentajeInasistencia >= 15 ? '#f59e0b' : '#10b981')"></div>
+                        </div>
+                        <strong [style.color]="est.porcentajeInasistencia >= 25 ? '#ef4444' : (est.porcentajeInasistencia >= 15 ? '#f59e0b' : 'var(--text-primary)')">
+                          {{ est.porcentajeInasistencia }}%
+                        </strong>
+                      </div>
+                    </td>
+                    <td>
+                      @if (est.nivelRiesgo === 'Critico') {
+                        <span class="badge badge-rojo">🔴 Riesgo Pérdida (≥25%)</span>
+                      } @else if (est.nivelRiesgo === 'Alto') {
+                        <span class="badge badge-amarillo">🟡 Alerta Preventiva</span>
+                      } @else if (est.nivelRiesgo === 'Medio') {
+                        <span class="badge badge-azul">🔵 Seguimiento Leve</span>
+                      } @else {
+                        <span class="badge badge-verde">🟢 Asistencia Normal</span>
+                      }
+                    </td>
+                    <td>
+                      <div>
+                        <span style="font-size: 0.8rem; display: block; font-weight: 600;">{{ est.acudienteNombre }}</span>
+                        @if (est.acudienteTelefono && est.acudienteTelefono !== 'Sin registro') {
+                          <a [href]="'tel:' + est.acudienteTelefono" style="font-size: 0.74rem; color: var(--primary); text-decoration: none;">
+                            📞 {{ est.acudienteTelefono }}
+                          </a>
+                        } @else {
+                          <span style="font-size: 0.74rem; color: var(--text-muted);">Sin teléfono</span>
+                        }
+                      </div>
+                    </td>
+                    <td style="text-align: right;">
+                      <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                        <a [routerLink]="['/profesor/convivencia']" [queryParams]="{ estudianteId: est.estudianteId }" class="btn-secundario" style="font-size: 0.76rem; padding: 0.3rem 0.6rem;" title="Citar acudiente o registrar observación en observador">
+                          <span>⚖️</span> Citar
+                        </a>
+                        <a routerLink="/profesor/planilla" class="btn-principal" style="font-size: 0.76rem; padding: 0.3rem 0.6rem;" title="Revisar notas en planilla digital">
+                          <span>📝</span> Notas
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem;">
+                      <span style="font-size: 1.8rem;">🎉</span>
+                      <p style="margin: 0.4rem 0 0; color: var(--grade-superior); font-weight: 600;">
+                        No hay estudiantes que coincidan con los criterios de inasistencia seleccionados.
+                      </p>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <!-- Módulo de Copiloto Docente con IA -->
-        <div class="ai-banner-modern">
+        <div class="ai-banner-modern" style="margin-top: 1.75rem;">
           <div class="entre" style="margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <span class="ai-chip">🤖 Copiloto Docente IA</span>
@@ -217,7 +528,7 @@ import { mensajeError } from '../core/errores';
               <div class="card" style="padding: 2rem 1.5rem; text-align: center;">
                 <span style="font-size: 2.2rem;">🎉</span>
                 <p class="lead" style="color: var(--grade-superior); margin: 0.35rem 0 0;">
-                  Todos los estudiantes se encuentran en zona de normalidad académica y asistencia para este criterio.
+                  Todos los estudiantes se encuentran en normalidad académica y asistencia en tus asignaturas.
                 </p>
               </div>
             }
@@ -282,6 +593,11 @@ export class DashboardProfesorComponent implements OnInit {
   filtroNivel = signal<'todos' | 'Critico' | 'Alto' | 'Medio'>('todos');
   busquedaTexto = signal('');
 
+  // Filtros para el monitor profundo de ausentismo del docente
+  filtroFallasRiesgo = signal<'todos' | 'Critico' | 'Alto' | 'Medio' | 'Bajo'>('todos');
+  filtroFallasGrupo = signal<string>('todos');
+  busquedaFallas = signal<string>('');
+
   alertasFiltradas = computed(() => {
     const list = this.data()?.alertasIa ?? [];
     const nivel = this.filtroNivel();
@@ -294,6 +610,34 @@ export class DashboardProfesorComponent implements OnInit {
         item.grupo.toLowerCase().includes(q) ||
         item.documento.toLowerCase().includes(q);
       return coincideNivel && coincideTexto;
+    });
+  });
+
+  gruposDisponibles = computed(() => {
+    const fallas = this.data()?.estudiantesConFallas ?? [];
+    const set = new Set<string>();
+    fallas.forEach(f => {
+      if (f.grupo && f.grupo !== 'Sin grupo') set.add(f.grupo);
+    });
+    return Array.from(set).sort();
+  });
+
+  estudiantesFallasFiltrados = computed(() => {
+    const list = this.data()?.estudiantesConFallas ?? [];
+    const riesgo = this.filtroFallasRiesgo();
+    const grupo = this.filtroFallasGrupo();
+    const q = this.busquedaFallas().trim().toLowerCase();
+
+    return list.filter(item => {
+      const coincideRiesgo = riesgo === 'todos' || item.nivelRiesgo.toLowerCase() === riesgo.toLowerCase();
+      const coincideGrupo = grupo === 'todos' || item.grupo.toLowerCase() === grupo.toLowerCase();
+      const coincideTexto = !q ||
+        item.nombre.toLowerCase().includes(q) ||
+        item.documento.toLowerCase().includes(q) ||
+        item.grupo.toLowerCase().includes(q) ||
+        (item.acudienteNombre && item.acudienteNombre.toLowerCase().includes(q));
+
+      return coincideRiesgo && coincideGrupo && coincideTexto;
     });
   });
 
@@ -316,6 +660,59 @@ export class DashboardProfesorComponent implements OnInit {
         this.error.set(mensajeError(err));
       }
     });
+  }
+
+  porcentajeAprobados(): number {
+    const total = this.data()?.distribucionNotas.total ?? 0;
+    const aprobados = this.data()?.distribucionNotas.aprobados ?? 0;
+    return total > 0 ? Math.round((aprobados / total) * 100) : 100;
+  }
+
+  promedioSemanal(): number {
+    const hist = this.data()?.historicoSemanal ?? [];
+    if (hist.length === 0) return 100;
+    const suma = hist.reduce((acc, curr) => acc + curr.porcentaje, 0);
+    return Math.round(suma / hist.length);
+  }
+
+  pctMetodo(tipo: 'qr' | 'rostro' | 'fallas'): number {
+    const dist = this.data()?.distribucionAsistencia;
+    if (!dist || dist.totalEsperados === 0) return 0;
+    if (tipo === 'qr') return Math.round((dist.origenQr / dist.totalEsperados) * 100);
+    if (tipo === 'rostro') return Math.round((dist.origenRostro / dist.totalEsperados) * 100);
+    return Math.round((dist.totalFallas / dist.totalEsperados) * 100);
+  }
+
+  colorBarraGrupo(porcentaje: number): string {
+    if (porcentaje >= 85) return 'var(--grade-superior)';
+    if (porcentaje >= 75) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  claseBarraGrupo(porcentaje: number): string {
+    if (porcentaje >= 85) return 'verde';
+    if (porcentaje >= 75) return 'amarillo';
+    return 'rojo';
+  }
+
+  contarFallasPorRiesgo(nivel: string): number {
+    const list = this.data()?.estudiantesConFallas ?? [];
+    return list.filter(x => x.nivelRiesgo.toLowerCase() === nivel.toLowerCase()).length;
+  }
+
+  formatearDia(fecha: string): string {
+    if (!fecha) return '';
+    try {
+      const partes = fecha.split('-');
+      if (partes.length === 3) {
+        const d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        return `${dias[d.getDay()]} ${partes[2]}`;
+      }
+      return fecha.slice(5, 10);
+    } catch {
+      return fecha.slice(5, 10);
+    }
   }
 
   contarNivel(nivel: string): number {

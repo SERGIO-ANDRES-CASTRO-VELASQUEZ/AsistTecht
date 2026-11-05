@@ -135,8 +135,51 @@ export interface HistoricoDia {
   fecha: string;
   diaNombre: string;
   presentes: number;
+  fallas?: number;
   esperados: number;
   porcentaje: number;
+}
+
+export interface AsistenciaGrupo {
+  grupoId: number;
+  grupoNombre: string;
+  totalEstudiantes: number;
+  totalSesiones: number;
+  totalEsperados: number;
+  totalAsistencias: number;
+  totalFallas: number;
+  porcentajeAsistencia: number;
+  porcentajeFallas: number;
+}
+
+export interface DistribucionAsistencia {
+  totalPresencias: number;
+  totalFallas: number;
+  totalEsperados: number;
+  origenQr: number;
+  origenRostro: number;
+  origenManual: number;
+  porcentajeAsistencia: number;
+  porcentajeAusentismo: number;
+}
+
+export interface EstudianteFalla {
+  estudianteId: number;
+  nombre: string;
+  documento: string;
+  grupoId: number;
+  grupo: string;
+  totalSesiones: number;
+  totalAsistencias: number;
+  totalFallas: number;
+  porcentajeInasistencia: number;
+  porcentajeAsistencia: number;
+  nivelRiesgo: 'Critico' | 'Alto' | 'Medio' | 'Bajo';
+  ultimaFalla: string;
+  acudienteNombre: string;
+  acudienteTelefono: string;
+  acudienteCorreo: string;
+  anotacionesConvivencia: number;
 }
 
 export interface DashboardDirector {
@@ -147,11 +190,17 @@ export interface DashboardDirector {
     totalGrupos: number;
     asistenciaHoy: number;
     presentesHoy: number;
+    fallasHoy?: number;
     promedioGeneral: number;
     estudiantesEnRiesgo: number;
     totalConvivencia?: number;
+    totalFallasGlobales?: number;
+    tasaAusentismoGlobal?: number;
   };
   historicoSemanal: HistoricoDia[];
+  asistenciaPorGrupos?: AsistenciaGrupo[];
+  distribucionAsistencia?: DistribucionAsistencia;
+  estudiantesConFallas?: EstudianteFalla[];
   distribucionNotas: {
     aprobados: number;
     reprobados: number;
@@ -168,9 +217,16 @@ export interface DashboardProfesor {
     totalEstudiantes: number;
     asistenciaHoy: number;
     presentesHoy: number;
+    fallasHoy?: number;
     estudiantesEnRiesgo: number;
     totalConvivencia?: number;
+    totalFallasMisCursos?: number;
+    tasaAusentismoMisCursos?: number;
   };
+  historicoSemanal?: HistoricoDia[];
+  asistenciaPorGrupos?: AsistenciaGrupo[];
+  distribucionAsistencia?: DistribucionAsistencia;
+  estudiantesConFallas?: EstudianteFalla[];
   distribucionNotas: {
     aprobados: number;
     reprobados: number;

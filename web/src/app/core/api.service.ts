@@ -140,6 +140,21 @@ export class ApiService {
     return this.http.post<Marca>(`/api/sesiones/${sesionId}/reconocer`, { vector, confirmar, ancho });
   }
 
+  biometriaSesion(sesionId: number) {
+    return this.http.get<import('./rostro.service').EstudianteBiometria[]>(`/api/sesiones/${sesionId}/biometria`);
+  }
+
+  marcarFacial(sesionId: number, body: { estudianteId?: number; estudianteIds?: number[]; ancho?: number }) {
+    return this.http.post<{
+      marcados: Array<{
+        estudianteId: number;
+        nombre: string;
+        documento?: string;
+        estado: import('./models').EstadoMarca;
+      }>;
+    }>(`/api/sesiones/${sesionId}/marcar-facial`, body);
+  }
+
   qr() {
     return this.http.get('/api/cuenta/qr', { responseType: 'blob' });
   }
@@ -174,6 +189,14 @@ export class ApiService {
 
   crearConvivencia(body: { estudianteId: number; tipo: string; titulo: string; descripcion: string; compromiso?: string; fecha?: string }) {
     return this.http.post<{ mensaje: string; id: number }>('/api/convivencia', body);
+  }
+
+  actualizarConvivencia(id: number, body: { tipo?: string; titulo?: string; descripcion?: string; compromiso?: string; fecha?: string }) {
+    return this.http.put<{ exito: boolean; mensaje: string; id: number }>(`/api/convivencia/${id}`, body);
+  }
+
+  eliminarConvivencia(id: number) {
+    return this.http.delete<{ exito: boolean; mensaje: string }>(`/api/convivencia/${id}`);
   }
 
   boletin(estudianteId: number) {
@@ -218,6 +241,25 @@ export class ApiService {
 
   marcarTodasNotificacionesLeidas() {
     return this.http.post<{ exito: boolean; actualizadas: number }>('/api/notificaciones/marcar-todas', {});
+  }
+
+  eliminarNotificacion(id: number) {
+    return this.http.delete<{ exito: boolean; mensaje: string }>(`/api/notificaciones/${id}`);
+  }
+
+  vaciarNotificaciones() {
+    return this.http.delete<{ exito: boolean; eliminadas: number; mensaje: string }>('/api/notificaciones/todas');
+  }
+
+  buscarEstudiantes(q: string, limite: number = 10) {
+    return this.http.get<Array<{
+      id: number;
+      nombre: string;
+      documento: string;
+      grupoId: number;
+      grupo: string;
+      activo: boolean;
+    }>>(`/api/estudiantes/buscar?q=${encodeURIComponent(q)}&limite=${limite}`);
   }
 
   acudientes() {

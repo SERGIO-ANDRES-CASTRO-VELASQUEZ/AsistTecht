@@ -152,8 +152,8 @@ public class AdminController : ControllerBase
 
         if (nombre.Length is 0 or > 120)
             return BadRequest(new { mensaje = "Escribe el nombre del profesor." });
-        if (cedula.Length is < 4 or > 40 || cedula.Any(char.IsWhiteSpace))
-            return BadRequest(new { mensaje = "La Cédula de Ciudadanía / Documento del docente debe tener entre 4 y 40 caracteres, sin espacios." });
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cedula, @"^\d{5,15}$"))
+            return BadRequest(new { mensaje = "La Cédula de Ciudadanía del docente debe contener únicamente números (entre 5 y 15 dígitos)." });
 
         if (string.IsNullOrWhiteSpace(password))
             password = PasswordPolicy.GenerarClaveDinamica();
@@ -211,8 +211,8 @@ public class AdminController : ControllerBase
 
         if (nombre.Length is 0 or > 120)
             return BadRequest(new { mensaje = "Escribe el nombre del profesor." });
-        if (cedula.Length is < 4 or > 40 || cedula.Any(char.IsWhiteSpace))
-            return BadRequest(new { mensaje = "La Cédula de Ciudadanía / Documento del docente debe tener entre 4 y 40 caracteres, sin espacios." });
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cedula, @"^\d{5,15}$"))
+            return BadRequest(new { mensaje = "La Cédula de Ciudadanía del docente debe contener únicamente números (entre 5 y 15 dígitos)." });
 
         if (await _db.Profesores.AnyAsync(p => p.Usuario == cedula && p.Id != id))
             return BadRequest(new { mensaje = "Esa Cédula de Ciudadanía ya está en uso por otro profesor." });

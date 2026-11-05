@@ -166,15 +166,32 @@ interface ToastNotif {
             </div>
 
             <form (ngSubmit)="guardarEdicionEstudiante()" style="display: grid; gap: 0.85rem;">
-              <label style="font-size: 0.85rem; font-weight: 600;">Nombre Completo
-                <input [(ngModel)]="editEstNombre" name="editEstNombre" required style="width: 100%; margin-top: 0.35rem;" />
+              <label style="font-size: 0.85rem; font-weight: 600;">
+                Nombre Completo <span style="color: #ef4444;">*</span>
+                <input [(ngModel)]="editEstNombre" name="editEstNombre" (input)="erroresEditEstudiante.nombre = ''" required style="width: 100%; margin-top: 0.35rem;" />
+                @if (erroresEditEstudiante.nombre) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditEstudiante.nombre }}</span>
+                }
               </label>
 
-              <label style="font-size: 0.85rem; font-weight: 600;">Documento de Identidad
-                <input [(ngModel)]="editEstDocumento" name="editEstDocumento" inputmode="numeric" required style="width: 100%; margin-top: 0.35rem;" />
+              <label style="font-size: 0.85rem; font-weight: 600;">
+                Documento de Identidad <span style="color: #ef4444;">*</span>
+                <input
+                  [(ngModel)]="editEstDocumento"
+                  name="editEstDocumento"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  (input)="onInputEditEstDocumento($event)"
+                  required
+                  style="width: 100%; margin-top: 0.35rem;"
+                />
+                @if (erroresEditEstudiante.documento) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditEstudiante.documento }}</span>
+                }
               </label>
 
-              <label style="font-size: 0.85rem; font-weight: 600;">Grado / Grupo Escolar
+              <label style="font-size: 0.85rem; font-weight: 600;">
+                Grado / Grupo Escolar <span style="color: #ef4444;">*</span>
                 <select [(ngModel)]="editEstGrupoId" name="editEstGrupoId" required style="width: 100%; margin-top: 0.35rem;">
                   <option [ngValue]="0">Sin grupo asignado</option>
                   @for (g of grupos(); track g.id) {
@@ -249,12 +266,29 @@ interface ToastNotif {
             </div>
 
             <form (ngSubmit)="guardarEdicionProfesor()" style="display: grid; gap: 0.85rem;">
-              <label style="font-size: 0.85rem; font-weight: 600;">Nombre Completo
-                <input [(ngModel)]="editDocNombre" name="editDocNombre" required style="width: 100%; margin-top: 0.35rem;" />
+              <label style="font-size: 0.85rem; font-weight: 600;">
+                Nombre Completo <span style="color: #ef4444;">*</span>
+                <input [(ngModel)]="editDocNombre" name="editDocNombre" (input)="erroresEditDocente.nombre = ''" required style="width: 100%; margin-top: 0.35rem;" />
+                @if (erroresEditDocente.nombre) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditDocente.nombre }}</span>
+                }
               </label>
 
-              <label style="font-size: 0.85rem; font-weight: 600;">Cédula de Ciudadanía (Acceso)
-                <input [(ngModel)]="editDocUsuario" name="editDocUsuario" inputmode="numeric" required placeholder="Número de cédula" style="width: 100%; margin-top: 0.35rem;" />
+              <label style="font-size: 0.85rem; font-weight: 600;">
+                Cédula de Ciudadanía (Acceso) <span style="color: #ef4444;">*</span>
+                <input
+                  [(ngModel)]="editDocUsuario"
+                  name="editDocUsuario"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  (input)="onInputEditDocUsuario($event)"
+                  required
+                  placeholder="Número de cédula (solo números)"
+                  style="width: 100%; margin-top: 0.35rem;"
+                />
+                @if (erroresEditDocente.cedula) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditDocente.cedula }}</span>
+                }
               </label>
 
               <label style="font-size: 0.85rem; font-weight: 600;">Nueva Contraseña (Opcional)
@@ -315,12 +349,28 @@ interface ToastNotif {
 
             <form (ngSubmit)="guardarEdicionAcudiente()" style="display: grid; gap: 0.85rem;">
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                <label style="font-size: 0.85rem; font-weight: 600;">Nombre Completo
-                  <input [(ngModel)]="editAcudNombre" name="editAcudNombre" required style="width: 100%; margin-top: 0.35rem;" />
+                <label style="font-size: 0.85rem; font-weight: 600;">
+                  Nombre Completo <span style="color: #ef4444;">*</span>
+                  <input [(ngModel)]="editAcudNombre" name="editAcudNombre" (input)="erroresEditAcudiente.nombre = ''" required style="width: 100%; margin-top: 0.35rem;" />
+                  @if (erroresEditAcudiente.nombre) {
+                    <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditAcudiente.nombre }}</span>
+                  }
                 </label>
 
-                <label style="font-size: 0.85rem; font-weight: 600;">Documento
-                  <input [(ngModel)]="editAcudDocumento" name="editAcudDocumento" inputmode="numeric" required style="width: 100%; margin-top: 0.35rem;" />
+                <label style="font-size: 0.85rem; font-weight: 600;">
+                  Documento <span style="color: #ef4444;">*</span>
+                  <input
+                    [(ngModel)]="editAcudDocumento"
+                    name="editAcudDocumento"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    (input)="onInputEditAcudDocumento($event)"
+                    required
+                    style="width: 100%; margin-top: 0.35rem;"
+                  />
+                  @if (erroresEditAcudiente.documento) {
+                    <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEditAcudiente.documento }}</span>
+                  }
                 </label>
               </div>
 
@@ -747,18 +797,34 @@ interface ToastNotif {
             </p>
 
             <form (ngSubmit)="crearEstudiante()" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem;">
-              <label>Nombre y Apellidos
-                <input [(ngModel)]="estNombre" name="estNombre" required placeholder="Ej. Valentina Gómez" />
-              </label>
-
-              <label>Documento de Identidad (Numérico)
-                <input [(ngModel)]="estDocumento" name="estDocumento" inputmode="numeric" required placeholder="Ej. 1098234123" />
+              <label>
+                Nombre y Apellidos <span style="color: #ef4444;">*</span>
+                <input [(ngModel)]="estNombre" name="estNombre" (input)="erroresEstudiante.nombre = ''" required placeholder="Ej. Valentina Gómez" />
+                @if (erroresEstudiante.nombre) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEstudiante.nombre }}</span>
+                }
               </label>
 
               <label>
-                Grado / Grupo Escolar
+                Documento de Identidad <span style="color: #ef4444;">*</span>
+                <input
+                  [(ngModel)]="estDocumento"
+                  name="estDocumento"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  (input)="onInputEstDocumento($event)"
+                  required
+                  placeholder="Ej. 1098234123"
+                />
+                @if (erroresEstudiante.documento) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEstudiante.documento }}</span>
+                }
+              </label>
+
+              <label>
+                Grado / Grupo Escolar <span style="color: #ef4444;">*</span>
                 <div style="display: flex; gap: 0.35rem; margin-top: 0.25rem;">
-                  <select [(ngModel)]="estGrupoId" name="estGrupoId" required style="flex: 1;">
+                  <select [(ngModel)]="estGrupoId" name="estGrupoId" (change)="erroresEstudiante.grupo = ''" required style="flex: 1;">
                     <option [ngValue]="0">Selecciona grado...</option>
                     @for (g of grupos(); track g.id) {
                       <option [ngValue]="g.id">{{ g.nombre }}</option>
@@ -768,6 +834,9 @@ interface ToastNotif {
                     +
                   </button>
                 </div>
+                @if (erroresEstudiante.grupo) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresEstudiante.grupo }}</span>
+                }
               </label>
 
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -932,12 +1001,28 @@ interface ToastNotif {
             <p class="lead">El ingreso del docente será por su número de cédula de ciudadanía.</p>
 
             <form (ngSubmit)="crearDocente()" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin-top: 1rem;">
-              <label>Nombre y Apellidos Completos
-                <input [(ngModel)]="docNombre" name="docNombre" required placeholder="Ej. Lic. Fernando Vallejo" />
+              <label>
+                Nombre y Apellidos Completos <span style="color: #ef4444;">*</span>
+                <input [(ngModel)]="docNombre" name="docNombre" (input)="erroresDocente.nombre = ''" required placeholder="Ej. Lic. Fernando Vallejo" />
+                @if (erroresDocente.nombre) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresDocente.nombre }}</span>
+                }
               </label>
 
-              <label>Cédula de Ciudadanía (Usuario de Ingreso)
-                <input [(ngModel)]="docUsuario" name="docUsuario" inputmode="numeric" required placeholder="Ej. 1075283910 (Solo números)" />
+              <label>
+                Cédula de Ciudadanía (Usuario de Ingreso) <span style="color: #ef4444;">*</span>
+                <input
+                  [(ngModel)]="docUsuario"
+                  name="docUsuario"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  (input)="onInputCedulaDocente($event)"
+                  required
+                  placeholder="Ej. 1075283910 (Solo números)"
+                />
+                @if (erroresDocente.cedula) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresDocente.cedula }}</span>
+                }
               </label>
 
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -1074,12 +1159,28 @@ interface ToastNotif {
             </p>
 
             <form (ngSubmit)="crearAcudiente()" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem;">
-              <label>Nombre del Acudiente
-                <input [(ngModel)]="acudNombre" name="acudNombre" required placeholder="Ej. Patricia Salazar" />
+              <label>
+                Nombre del Acudiente <span style="color: #ef4444;">*</span>
+                <input [(ngModel)]="acudNombre" name="acudNombre" (input)="erroresAcudiente.nombre = ''" required placeholder="Ej. Patricia Salazar" />
+                @if (erroresAcudiente.nombre) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresAcudiente.nombre }}</span>
+                }
               </label>
 
-              <label>Documento de Identidad
-                <input [(ngModel)]="acudDocumento" name="acudDocumento" inputmode="numeric" required placeholder="Ej. 43908123" />
+              <label>
+                Documento de Identidad <span style="color: #ef4444;">*</span>
+                <input
+                  [(ngModel)]="acudDocumento"
+                  name="acudDocumento"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  (input)="onInputAcudDocumento($event)"
+                  required
+                  placeholder="Ej. 43908123"
+                />
+                @if (erroresAcudiente.documento) {
+                  <span style="color: #ef4444; font-size: 0.78rem; display: block; margin-top: 0.25rem;">{{ erroresAcudiente.documento }}</span>
+                }
               </label>
 
               <label>Teléfono de Contacto
@@ -1410,6 +1511,45 @@ export class AdminComponent implements OnInit {
   docNombre = '';
   docUsuario = '';
 
+  // Errores específicos por campo y validaciones estrictas (ERR-008 y ERR-009)
+  erroresDocente = { nombre: '', cedula: '' };
+  erroresEditDocente = { nombre: '', cedula: '' };
+  erroresEstudiante = { nombre: '', documento: '', grupo: '' };
+  erroresEditEstudiante = { nombre: '', documento: '' };
+  erroresAcudiente = { nombre: '', documento: '' };
+  erroresEditAcudiente = { nombre: '', documento: '' };
+
+  onInputCedulaDocente(e: Event): void {
+    const val = (e.target as HTMLInputElement).value;
+    this.docUsuario = val.replace(/\D/g, '');
+    this.erroresDocente.cedula = '';
+  }
+
+  onInputEditEstDocumento(e: Event): void {
+    this.editEstDocumento = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.erroresEditEstudiante.documento = '';
+  }
+
+  onInputEditDocUsuario(e: Event): void {
+    this.editDocUsuario = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.erroresEditDocente.cedula = '';
+  }
+
+  onInputEditAcudDocumento(e: Event): void {
+    this.editAcudDocumento = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.erroresEditAcudiente.documento = '';
+  }
+
+  onInputEstDocumento(e: Event): void {
+    this.estDocumento = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.erroresEstudiante.documento = '';
+  }
+
+  onInputAcudDocumento(e: Event): void {
+    this.acudDocumento = (e.target as HTMLInputElement).value.replace(/\D/g, '');
+    this.erroresAcudiente.documento = '';
+  }
+
   mostrarFormAcudiente = signal(false);
   acudNombre = '';
   acudDocumento = '';
@@ -1674,8 +1814,32 @@ export class AdminComponent implements OnInit {
 
   // Estudiantes
   crearEstudiante(): void {
-    if (!this.estNombre.trim() || !this.estDocumento.trim()) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento son obligatorios.');
+    this.erroresEstudiante = { nombre: '', documento: '', grupo: '' };
+    let hayError = false;
+
+    if (!this.estNombre.trim()) {
+      this.erroresEstudiante.nombre = 'El nombre y apellidos son obligatorios.';
+      hayError = true;
+    }
+    const doc = this.estDocumento.trim();
+    if (!doc) {
+      this.erroresEstudiante.documento = 'El documento de identidad es obligatorio.';
+      hayError = true;
+    } else if (!/^\d+$/.test(doc)) {
+      this.erroresEstudiante.documento = 'El documento debe contener únicamente números.';
+      hayError = true;
+    } else if (doc.length < 5 || doc.length > 15) {
+      this.erroresEstudiante.documento = 'El documento debe tener entre 5 y 15 dígitos numéricos.';
+      hayError = true;
+    }
+
+    if (this.estGrupoId <= 0 && this.grupos().length === 0) {
+      this.erroresEstudiante.grupo = 'Debes seleccionar un grado/grupo escolar.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Corrige los errores indicados en el formulario.');
       return;
     }
 
@@ -1683,7 +1847,7 @@ export class AdminComponent implements OnInit {
 
     this.api.adminCrearEstudiante({
       nombre: this.estNombre.trim(),
-      documento: this.estDocumento.trim(),
+      documento: doc,
       grupoId: this.estGrupoId > 0 ? this.estGrupoId : (this.grupos()[0]?.id || 1)
     }).subscribe({
       next: creado => {
@@ -1696,6 +1860,7 @@ export class AdminComponent implements OnInit {
         );
         this.estNombre = '';
         this.estDocumento = '';
+        this.erroresEstudiante = { nombre: '', documento: '', grupo: '' };
         this.mostrarFormEstudiante.set(false);
         this.cargarEstudiantes();
         this.api.adminResumen().subscribe({ next: r => this.resumen.set(r) });
@@ -1771,9 +1936,28 @@ export class AdminComponent implements OnInit {
 
   // Docentes
   crearDocente(): void {
+    this.erroresDocente = { nombre: '', cedula: '' };
+    let hayError = false;
+
+    if (!this.docNombre.trim()) {
+      this.erroresDocente.nombre = 'El nombre y apellidos del docente son obligatorios.';
+      hayError = true;
+    }
+
     const cedula = this.docUsuario.trim();
-    if (!this.docNombre.trim() || !cedula) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y cédula de ciudadanía son obligatorios.');
+    if (!cedula) {
+      this.erroresDocente.cedula = 'La cédula de ciudadanía es obligatoria.';
+      hayError = true;
+    } else if (!/^\d+$/.test(cedula)) {
+      this.erroresDocente.cedula = 'La cédula debe contener únicamente números.';
+      hayError = true;
+    } else if (cedula.length < 5 || cedula.length > 15) {
+      this.erroresDocente.cedula = 'La cédula debe tener entre 5 y 15 dígitos numéricos.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Revisa los campos marcados con error.');
       return;
     }
 
@@ -1787,6 +1971,7 @@ export class AdminComponent implements OnInit {
         this.mostrarToast('exito', 'Docente Creado', `Profesor ${creado.nombre} registrado con éxito con Cédula ${creado.usuario}.`);
         this.docNombre = '';
         this.docUsuario = '';
+        this.erroresDocente = { nombre: '', cedula: '' };
         this.mostrarFormDocente.set(false);
         this.api.adminProfesores().subscribe({ next: p => this.profesores.set(p) });
         this.api.adminResumen().subscribe({ next: r => this.resumen.set(r) });
@@ -1826,8 +2011,24 @@ export class AdminComponent implements OnInit {
   }
 
   crearAcudiente(): void {
-    if (!this.acudNombre.trim() || !this.acudDocumento.trim()) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento del acudiente son obligatorios.');
+    this.erroresAcudiente = { nombre: '', documento: '' };
+    let hayError = false;
+
+    if (!this.acudNombre.trim()) {
+      this.erroresAcudiente.nombre = 'El nombre del acudiente es obligatorio.';
+      hayError = true;
+    }
+    const doc = this.acudDocumento.trim();
+    if (!doc) {
+      this.erroresAcudiente.documento = 'El documento de identidad es obligatorio.';
+      hayError = true;
+    } else if (!/^\d+$/.test(doc)) {
+      this.erroresAcudiente.documento = 'El documento debe contener exclusivamente números.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Corrige los errores del acudiente.');
       return;
     }
 
@@ -1835,7 +2036,7 @@ export class AdminComponent implements OnInit {
 
     this.api.adminCrearAcudiente({
       nombre: this.acudNombre.trim(),
-      documento: this.acudDocumento.trim(),
+      documento: doc,
       telefono: this.acudTelefono.trim(),
       correo: this.acudCorreo.trim(),
       estudianteIds: hijosArr
@@ -1898,8 +2099,24 @@ export class AdminComponent implements OnInit {
     const est = this.estudianteParaEditar();
     if (!est) return;
 
-    if (!this.editEstNombre.trim() || !this.editEstDocumento.trim()) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento son obligatorios.');
+    this.erroresEditEstudiante = { nombre: '', documento: '' };
+    let hayError = false;
+
+    if (!this.editEstNombre.trim()) {
+      this.erroresEditEstudiante.nombre = 'El nombre completo es obligatorio.';
+      hayError = true;
+    }
+    const doc = this.editEstDocumento.trim();
+    if (!doc) {
+      this.erroresEditEstudiante.documento = 'El documento es obligatorio.';
+      hayError = true;
+    } else if (!/^\d+$/.test(doc)) {
+      this.erroresEditEstudiante.documento = 'El documento debe contener únicamente números.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Corrige los errores del estudiante.');
       return;
     }
 
@@ -1907,7 +2124,7 @@ export class AdminComponent implements OnInit {
 
     this.api.adminActualizarEstudiante(est.id, {
       nombre: this.editEstNombre.trim(),
-      documento: this.editEstDocumento.trim(),
+      documento: doc,
       grupoId: this.editEstGrupoId > 0 ? this.editEstGrupoId : undefined,
       acudienteId: this.editEstAcudienteId > 0 ? this.editEstAcudienteId : undefined,
       password: this.editEstPassword.trim() || undefined
@@ -1964,15 +2181,34 @@ export class AdminComponent implements OnInit {
     const prof = this.profesorParaEditar();
     if (!prof) return;
 
-    if (!this.editDocNombre.trim() || !this.editDocUsuario.trim()) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y usuario son obligatorios.');
+    this.erroresEditDocente = { nombre: '', cedula: '' };
+    let hayError = false;
+
+    if (!this.editDocNombre.trim()) {
+      this.erroresEditDocente.nombre = 'El nombre completo es obligatorio.';
+      hayError = true;
+    }
+    const cedula = this.editDocUsuario.trim();
+    if (!cedula) {
+      this.erroresEditDocente.cedula = 'La cédula de ciudadanía es obligatoria.';
+      hayError = true;
+    } else if (!/^\d+$/.test(cedula)) {
+      this.erroresEditDocente.cedula = 'La cédula debe contener únicamente números.';
+      hayError = true;
+    } else if (cedula.length < 5 || cedula.length > 15) {
+      this.erroresEditDocente.cedula = 'La cédula debe tener entre 5 y 15 dígitos numéricos.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Revisa los campos del docente.');
       return;
     }
 
     this.guardandoEdicion.set(true);
     this.api.adminActualizarProfesor(prof.id, {
       nombre: this.editDocNombre.trim(),
-      usuario: this.editDocUsuario.trim(),
+      usuario: cedula,
       password: this.editDocPassword.trim() || undefined
     }).subscribe({
       next: (res) => {
@@ -2044,8 +2280,24 @@ export class AdminComponent implements OnInit {
     const acud = this.acudienteParaEditar();
     if (!acud) return;
 
-    if (!this.editAcudNombre.trim() || !this.editAcudDocumento.trim()) {
-      this.mostrarToast('alerta', 'Datos Incompletos', 'Nombre y documento son obligatorios.');
+    this.erroresEditAcudiente = { nombre: '', documento: '' };
+    let hayError = false;
+
+    if (!this.editAcudNombre.trim()) {
+      this.erroresEditAcudiente.nombre = 'El nombre del acudiente es obligatorio.';
+      hayError = true;
+    }
+    const doc = this.editAcudDocumento.trim();
+    if (!doc) {
+      this.erroresEditAcudiente.documento = 'El documento es obligatorio.';
+      hayError = true;
+    } else if (!/^\d+$/.test(doc)) {
+      this.erroresEditAcudiente.documento = 'El documento debe contener exclusivamente números.';
+      hayError = true;
+    }
+
+    if (hayError) {
+      this.mostrarToast('alerta', 'Datos Incompletos', 'Corrige los errores del acudiente.');
       return;
     }
 
@@ -2054,7 +2306,7 @@ export class AdminComponent implements OnInit {
 
     this.api.adminActualizarAcudiente(acud.id, {
       nombre: this.editAcudNombre.trim(),
-      documento: this.editAcudDocumento.trim(),
+      documento: doc,
       telefono: this.editAcudTelefono.trim(),
       correo: this.editAcudCorreo.trim(),
       password: this.editAcudPassword.trim() || undefined,

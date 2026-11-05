@@ -4615,3 +4615,387 @@ input:focus, select:focus, textarea:focus {
     break-after: auto !important;
   }
 }
+
+/* ==========================================================================
+   OPTIMIZACIÓN DE BIOMETRÍA FACIAL: 1-A-1 Y MULTITUD
+   ========================================================================== */
+.scanner-submodes-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding: 0.35rem;
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.scanner-submode-btn {
+  flex: 1;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.scanner-submode-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scanner-submode-btn.activo {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+/* Cajas de Seguimiento Facial AR */
+.face-tracking-box {
+  position: absolute;
+  pointer-events: none;
+  z-index: 15;
+  border-radius: 8px;
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+  transition: all 0.08s linear;
+  box-sizing: border-box;
+}
+
+.face-tracking-box[data-estado="Anotado"] {
+  border-color: #10B981;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.5);
+}
+
+.face-tracking-box[data-estado="YaRegistrado"] {
+  border-color: #3B82F6;
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.4);
+}
+
+.face-tracking-box[data-estado="Consultando"] {
+  border-color: #F59E0B;
+  border-style: dashed;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
+.box-bracket {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: inherit;
+}
+
+.box-bracket.tl { top: -2px; left: -2px; border-top: 3px solid; border-left: 3px solid; }
+.box-bracket.tr { top: -2px; right: -2px; border-top: 3px solid; border-right: 3px solid; }
+.box-bracket.bl { bottom: -2px; left: -2px; border-bottom: 3px solid; border-left: 3px solid; }
+.box-bracket.br { bottom: -2px; right: -2px; border-bottom: 3px solid; border-right: 3px solid; }
+
+.face-tag-pill {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(56, 189, 248, 0.7);
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  color: #ffffff;
+  font-size: 0.75rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.face-tag-pill[data-estado="Anotado"] {
+  border-color: #10B981;
+  background: rgba(6, 78, 59, 0.92);
+}
+
+.face-tag-pill[data-estado="YaRegistrado"] {
+  border-color: #3B82F6;
+  background: rgba(30, 58, 138, 0.92);
+}
+
+.face-tag-pill[data-estado="Consultando"] {
+  border-color: #F59E0B;
+  background: rgba(120, 53, 15, 0.92);
+}
+
+.tag-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 6px #10B981;
+}
+
+.face-tag-pill[data-estado="YaRegistrado"] .tag-status-dot {
+  background: #60A5FA;
+  box-shadow: 0 0 6px #60A5FA;
+}
+
+.face-tag-pill[data-estado="Consultando"] .tag-status-dot {
+  background: #FBBF24;
+  box-shadow: 0 0 6px #FBBF24;
+}
+
+.tag-student-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-conf-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #34D399;
+  background: rgba(16, 185, 129, 0.2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.multitud-hud-counter {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 0.35rem 0.9rem;
+  border-radius: 9999px;
+  color: #F8FAFC;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  z-index: 12;
+  pointer-events: none;
+}
+
+/* Botón Eliminar Notificación Individual (ERR-002) */
+.btn-eliminar-notif {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.btn-eliminar-notif:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.12);
+  transform: scale(1.1);
+}
+
+/* Dropdown Asíncrono de Estudiantes en Convivencia (ERR-007) */
+.dropdown-resultados-async {
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dropdown-item-hover {
+  transition: background 0.15s ease;
+}
+
+.dropdown-item-hover:hover {
+  background: var(--bg-hover) !important;
+}
+
+/* Errores de campo específicos (ERR-009) */
+.error-campo-inline {
+  color: #ef4444;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: block;
+  margin-top: 0.25rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ==========================================================================
+   Gráficas Avanzadas y Métricas de Ausentismo Institucional (Dashboard)
+   ========================================================================== */
+.group-bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 0.5rem 0;
+}
+
+.group-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.group-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.group-bar-track {
+  height: 12px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  display: flex;
+}
+
+.group-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group-bar-fill.verde {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.group-bar-fill.amarillo {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.group-bar-fill.rojo {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Barra Segmentada de Métodos y Asistencia */
+.distribucion-segmentada-track {
+  height: 18px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  display: flex;
+  margin: 1.25rem 0;
+  border: 1.5px solid var(--border);
+}
+
+.dist-seg {
+  height: 100%;
+  transition: width 0.6s ease;
+}
+
+.dist-seg.qr {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.dist-seg.rostro {
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.dist-seg.fallas {
+  background: linear-gradient(90deg, #ef4444, #b91c1c);
+}
+
+.dist-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.dist-leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.dot-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Tarjetas y Controles del Monitor de Ausentismo y Fallas */
+.banner-ausentismo-profundo {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-top: 1.75rem;
+  box-shadow: var(--shadow-md);
+  border-top: 5px solid #ef4444;
+}
+
+.tabla-fallas-container {
+  overflow-x: auto;
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-solid);
+}
+
+.tabla-fallas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.tabla-fallas th {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-weight: 700;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+
+.tabla-fallas td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tabla-fallas tr:hover {
+  background: var(--bg-hover);
+}
+
+.barra-fallas-mini {
+  width: 100%;
+  max-width: 120px;
+  height: 8px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.barra-fallas-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.linea-limite-25 {
+  position: absolute;
+  left: 25%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dc2626;
+  z-index: 2;
+}

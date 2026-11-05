@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from '@zxing/library';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../core/api.service';
-import { CaraLeida, RostroService } from '../core/rostro.service';
+import { CaraLeida, RostroService, EstudianteBiometria } from '../core/rostro.service';
 import { EstadoMarca, EstudianteClase, Grupo, Materia, SesionDetalle } from '../core/models';
 import { mensajeError } from '../core/errores';
 
@@ -22,6 +22,20 @@ interface EstudianteEscaneado {
   estado: EstadoMarca;
   hora: string;
   origen: 'qr' | 'rostro';
+}
+
+interface CaraEnPantalla {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  nombre: string;
+  documento?: string;
+  estudianteId?: number;
+  confianza?: number;
+  estado: EstadoMarca;
+  registrado: boolean;
 }
 
 @Component({
@@ -108,6 +122,28 @@ interface EstudianteEscaneado {
           </div>
         </div>
 
+        <!-- Selector de Submodo Facial (Solo visible en modo Facial) -->
+        @if (modo === 'rostro') {
+          <div class="scanner-submodes-bar">
+            <button
+              type="button"
+              class="scanner-submode-btn"
+              [class.activo]="submodoFacial() === 'individual'"
+              (click)="cambiarSubmodoFacial('individual')"
+            >
+              <span>⚡ 1 a 1 Ultrarrápido (Fila / Entrada)</span>
+            </button>
+            <button
+              type="button"
+              class="scanner-submode-btn"
+              [class.activo]="submodoFacial() === 'multitud'"
+              (click)="cambiarSubmodoFacial('multitud')"
+            >
+              <span>👥 Multitud (Aula Grupal / Varias Personas)</span>
+            </button>
+          </div>
+        }
+
         @if (error()) { <div class="aviso error" style="margin-bottom: 1rem;">{{ error() }}</div> }
 
         <!-- Grid de la Escena: Visor Cyberpunk a la izquierda + Planilla a la derecha -->
@@ -125,47 +161,78 @@ interface EstudianteEscaneado {
               <!-- Retícula Holográfica para Escaneo de Carnet QR -->
               @if (modo === 'qr') {
                 <div class="carnet-reticle-overlay" [class.detected]="carnetDetectado()">
-                  <!-- Esquinas Tecnológicas -->
                   <div class="corner-bracket tl"></div>
                   <div class="corner-bracket tr"></div>
                   <div class="corner-bracket bl"></div>
                   <div class="corner-bracket br"></div>
 
-                  <!-- Línea Láser de Escaneo en Movimiento Continuo -->
                   <div class="laser-scanner-beam"></div>
 
-                  <!-- Zona Guía: Foto del Estudiante (Izquierda) -->
                   <div class="carnet-photo-zone">
                     <span class="zone-icon">👤</span>
                     <span class="zone-text">Foto Carnet</span>
                   </div>
 
-                  <!-- Zona Guía: Código QR (Derecha) -->
                   <div class="carnet-qr-zone">
                     <div class="qr-target-corners"></div>
                     <span class="zone-icon">📷</span>
                     <span class="zone-text">Enfoca el QR aquí</span>
                   </div>
 
-                  <!-- Leyenda Guía -->
                   <div class="carnet-guide-caption">
                     <span>🪪 Ubica el carnet dentro del marco para detección instantánea</span>
                   </div>
                 </div>
               } @else {
-                <!-- Retícula para Geometría Facial Biometría -->
-                <div class="face-reticle-overlay">
-                  <div class="face-silhouette-oval">
-                    <div class="face-crosshair-h"></div>
-                    <div class="face-crosshair-v"></div>
+                <!-- MODO FACIAL: Bounding Boxes AR Dinámicas de Detección -->
+                @for (cara of carasEnPantalla(); track cara.id) {
+                  <div
+                    class="face-tracking-box"
+                    [attr.data-estado]="cara.estado"
+                    [style.left.px]="cara.x"
+                    [style.top.px]="cara.y"
+                    [style.width.px]="cara.w"
+                    [style.height.px]="cara.h"
+                  >
+                    <div class="box-bracket tl"></div>
+                    <div class="box-bracket tr"></div>
+                    <div class="box-bracket bl"></div>
+                    <div class="box-bracket br"></div>
+
+                    <!-- Etiqueta Flotante con Nombre y Porcentaje -->
+                    <div class="face-tag-pill" [attr.data-estado]="cara.estado">
+                      <span class="tag-status-dot"></span>
+                      <strong class="tag-student-name">{{ cara.nombre }}</strong>
+                      @if (cara.confianza) {
+                        <span class="tag-conf-badge">{{ cara.confianza }}%</span>
+                      }
+                    </div>
                   </div>
-                  <div class="face-guide-caption">
-                    <span>👁 Mira hacia la cámara para cotejar tu geometría facial</span>
+                }
+
+                <!-- HUD Superior Informativo para el Modo Multitud -->
+                @if (submodoFacial() === 'multitud') {
+                  <div class="multitud-hud-counter">
+                    <span class="pulsing-live-dot"></span>
+                    <span>👥 {{ carasEnPantalla().length }} rostros detectados en escena</span>
                   </div>
-                </div>
+                }
+
+                <!-- Retícula Guía Central (Modo 1 a 1 cuando no hay detección aún) -->
+                @if (submodoFacial() === 'individual' && carasEnPantalla().length === 0) {
+                  <div class="face-reticle-overlay">
+                    <div class="face-silhouette-oval">
+                      <div class="face-crosshair-h"></div>
+                      <div class="face-crosshair-v"></div>
+                    </div>
+                    <div class="face-guide-caption">
+                      <span>⚡ Modo 1 a 1: Ubica el rostro del alumno al frente</span>
+                    </div>
+                  </div>
+                }
               }
 
-              <!-- Burbujas Flotantes de Detección (QR / Rostro) -->
+              <!-- Burbujas Flotantes de Detección QR -->
               @for (burbuja of burbujas(); track burbuja.token) {
                 <div class="ar-bubble-badge" [attr.data-estado]="burbuja.estado" [style.left.px]="burbuja.x" [style.top.px]="burbuja.y">
                   <div class="bubble-pulse"></div>
@@ -192,7 +259,7 @@ interface EstudianteEscaneado {
                         <span class="meta-doc">Doc: {{ ultimoEscaneado()!.documento }}</span>
                       }
                       <span class="meta-origin">
-                        {{ ultimoEscaneado()!.origen === 'qr' ? '🪪 Carnet QR Oficial' : '👁 Biometría Facial' }}
+                        {{ ultimoEscaneado()!.origen === 'qr' ? '🪪 Carnet QR Oficial' : '👁 Biometría Facial Instantánea' }}
                       </span>
                     </div>
                     <div class="hologram-status-badge">
@@ -209,8 +276,13 @@ interface EstudianteEscaneado {
 
             <!-- Ayuda e Indicaciones para el Docente -->
             <div class="scanner-quick-tips">
-              <span class="tip-pill">💡 <strong>Carnet:</strong> Puedes escanear el carnet físico impreso o el carnet digital desde el teléfono.</span>
-              <span class="tip-pill">⚡ <strong>Rápido:</strong> Si un alumno no trae su carnet, puedes marcarlo manualmente en la lista lateral.</span>
+              @if (modo === 'rostro') {
+                <span class="tip-pill">⚡ <strong>Biometría Local:</strong> El cotejo se ejecuta directamente en el dispositivo a máxima velocidad sin esperas.</span>
+                <span class="tip-pill">👥 <strong>Multitud:</strong> Apunta la cámara al salón para detectar y registrar varios alumnos simultáneamente.</span>
+              } @else {
+                <span class="tip-pill">💡 <strong>Carnet:</strong> Puedes escanear el carnet físico impreso o el carnet digital desde el teléfono.</span>
+                <span class="tip-pill">⚡ <strong>Rápido:</strong> Si un alumno no trae su carnet, puedes marcarlo manualmente en la lista lateral.</span>
+              }
             </div>
           </div>
 
@@ -325,6 +397,10 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
   grupoId = 0;
 
   modo: 'qr' | 'rostro' = 'qr';
+  submodoFacial = signal<'individual' | 'multitud'>('individual');
+  carasEnPantalla = signal<CaraEnPantalla[]>([]);
+  biometriaGrupo = signal<EstudianteBiometria[]>([]);
+
   carnetDetectado = signal(false);
   flashActivo = signal(false);
   ultimoEscaneado = signal<EstudianteEscaneado | null>(null);
@@ -346,6 +422,7 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
   private enCurso = new Set<string>();
   private resueltos = new Map<string, { estado: EstadoMarca; nombre: string }>();
   private posiciones = new Map<string, { x: number; y: number; visto: number }>();
+  private cooldowns = new Map<number, number>();
   private rachas = new Map<number, { veces: number; visto: number }>();
   private confirmados = new Map<number, EstadoMarca>();
   private leyendoCara = false;
@@ -414,8 +491,18 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.error.set('');
         this.sesion.set(detalle);
         this.esperaCamara = true;
+        this.cargarBiometriaGrupo(detalle.id);
       },
       error: (error: unknown) => this.error.set(mensajeError(error))
+    });
+  }
+
+  private cargarBiometriaGrupo(sesionId: number): void {
+    this.api.biometriaSesion(sesionId).subscribe({
+      next: (catalogo) => {
+        this.biometriaGrupo.set(catalogo || []);
+      },
+      error: () => {}
     });
   }
 
@@ -423,6 +510,7 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.apagar();
     this.sesion.set(null);
     this.burbujas.set([]);
+    this.carasEnPantalla.set([]);
     this.ultimoEscaneado.set(null);
   }
 
@@ -449,11 +537,17 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (this.modo === modo) return;
     this.modo = modo;
     this.burbujas.set([]);
+    this.carasEnPantalla.set([]);
     this.rachas.clear();
     if (!this.activo) return;
     window.clearTimeout(this.timer);
     if (modo === 'rostro') void this.bucleRostro();
     else void this.iniciarLectura();
+  }
+
+  cambiarSubmodoFacial(submodo: 'individual' | 'multitud'): void {
+    this.submodoFacial.set(submodo);
+    this.carasEnPantalla.set([]);
   }
 
   texto(estado: EstadoMarca): string {
@@ -577,10 +671,7 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   /**
-   * Motor de decodificación multicapa optimizado para Carnets Escolares:
-   * 1. Sub-recuadro dedicado de código QR (mitad derecha del marco del carnet) a resolución nativa 100%.
-   * 2. Recuadro completo del carnet en el centro.
-   * 3. Pantalla completa escalada.
+   * Motor de decodificación multicapa optimizado para Carnets Escolares
    */
   private leerVariosQr(video: HTMLVideoElement): Array<{ texto: string; puntos: Array<{ x: number; y: number }> }> {
     const anchoVideo = video.videoWidth;
@@ -694,6 +785,9 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
+  /**
+   * Bucle Biométrico Facial de Alto Desempeño
+   */
   private async bucleRostro(): Promise<void> {
     try {
       await this.rostro.preparar();
@@ -701,102 +795,228 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.error.set('No se pudieron cargar los modelos de biometría facial.');
       return;
     }
+
     const paso = async () => {
       if (!this.activo || this.modo !== 'rostro') return;
       const video = this.video?.nativeElement;
+
       if (video && video.readyState >= 2 && !this.leyendoCara) {
         this.leyendoCara = true;
         try {
-          const caras = await this.rostro.describirTodas(video);
-          this.zone.run(() => void this.recibirCaras(caras));
+          if (this.submodoFacial() === 'individual') {
+            await this.procesarRostroIndividual(video);
+          } else {
+            await this.procesarRostroMultitud(video);
+          }
         } catch {
-          /* un fallo puntual no interrumpe la lectura */
+          /* un fallo puntual no interrumpe el ciclo */
         } finally {
           this.leyendoCara = false;
         }
       }
+
       if (!this.activo || this.modo !== 'rostro') return;
-      this.timer = window.setTimeout(() => void paso(), 380);
+      // Intervalo adaptativo ultra-rápido: 70ms para 1-a-1, 130ms para multitud
+      const delay = this.submodoFacial() === 'individual' ? 70 : 130;
+      this.timer = window.setTimeout(() => void paso(), delay);
     };
+
     void paso();
   }
 
-  private async recibirCaras(caras: CaraLeida[]): Promise<void> {
+  /**
+   * Modo 1 a 1: Análisis y Reconocimiento Instantáneo
+   */
+  private async procesarRostroIndividual(video: HTMLVideoElement): Promise<void> {
     const sesion = this.sesion();
-    const video = this.video?.nativeElement;
-    if (!sesion || !video) return;
-    const ahora = Date.now();
-    const vistos = new Set<string>();
+    if (!sesion) return;
 
-    const lecturas = await Promise.all(
-      caras.map(async (cara) => {
-        const ancho = cara.box.width / video.videoWidth;
-        try {
-          const marca = await firstValueFrom(this.api.reconocer(sesion.id, cara.vector, false, ancho));
-          if (!marca.seguro || !marca.estudianteId || !marca.nombre) return null;
-          return { cara, ancho, id: marca.estudianteId, nombre: marca.nombre };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const porId = new Map<number, { cara: CaraLeida; ancho: number; nombre: string }>();
-    for (const lectura of lecturas) {
-      if (!lectura || porId.has(lectura.id)) continue;
-      porId.set(lectura.id, lectura);
+    const cara = await this.rostro.describirRapido(video);
+    if (!cara) {
+      this.carasEnPantalla.set([]);
+      return;
     }
 
-    for (const [id, dato] of porId) {
-      const previo = this.rachas.get(id);
-      const veces = previo && ahora - previo.visto < 900 ? previo.veces + 1 : 1;
-      this.rachas.set(id, { veces, visto: ahora });
-      const token = `rostro-${id}`;
-      vistos.add(token);
-      const sitio = this.ubicar({
-        x: dato.cara.box.x,
-        y: dato.cara.box.y,
-        width: dato.cara.box.width,
-        height: dato.cara.box.height
-      } as DOMRectReadOnly);
-      if (sitio) this.posiciones.set(token, { ...sitio, visto: ahora });
-      const ya = this.confirmados.get(id);
-      this.pintar(token, dato.nombre, ya ?? 'Consultando');
-      if (ya || veces < 2 || this.confirmandoIds.has(id)) continue;
-      this.confirmandoIds.add(id);
+    const pos = this.calcularCoordenadasPantalla(cara.box);
+    const catalogo = this.biometriaGrupo();
+    const match = this.rostro.hacerMatch(cara.vector, catalogo, 0.52);
 
-      this.api.reconocer(sesion.id, dato.cara.vector, true, dato.ancho).subscribe({
-        next: (final) => {
-          this.confirmandoIds.delete(id);
-          if (!final.estudianteId || !final.nombre) return;
-          this.confirmados.set(final.estudianteId, final.estado);
-          this.pintar(`rostro-${final.estudianteId}`, final.nombre, final.estado);
+    if (!match) {
+      this.carasEnPantalla.set([{
+        id: 'cara-desconocida',
+        ...pos,
+        nombre: 'Identificando...',
+        estado: 'Consultando',
+        registrado: false
+      }]);
+      return;
+    }
+
+    const estudianteId = match.estudianteId;
+    const yaRegistrado = this.estudianteYaRegistrado(estudianteId);
+
+    this.carasEnPantalla.set([{
+      id: `cara-${estudianteId}`,
+      ...pos,
+      nombre: match.nombre,
+      documento: match.documento,
+      estudianteId,
+      confianza: match.confianza,
+      estado: yaRegistrado ? 'YaRegistrado' : 'Anotado',
+      registrado: yaRegistrado
+    }]);
+
+    const ahora = Date.now();
+    const ultimoProcesado = this.cooldowns.get(estudianteId) || 0;
+    if (ahora - ultimoProcesado < 2500) {
+      return;
+    }
+
+    this.cooldowns.set(estudianteId, ahora);
+
+    if (yaRegistrado) {
+      return;
+    }
+
+    // Registrar asistencia inmediatamente
+    this.api.marcarFacial(sesion.id, { estudianteId }).subscribe({
+      next: (res) => {
+        const item = res.marcados?.find((m) => m.estudianteId === estudianteId);
+        if (item) {
+          this.anotarEnLista(item.nombre);
+          this.sonar();
+          this.activarFeedbackCarnet();
 
           const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           this.ultimoEscaneado.set({
-            nombre: final.nombre,
-            estado: final.estado,
+            nombre: item.nombre,
+            documento: item.documento,
+            estado: item.estado,
             hora: horaActual,
             origen: 'rostro'
           });
+        }
+      }
+    });
+  }
 
-          if (final.estado === 'Anotado') {
+  /**
+   * Modo Multitud: Análisis en Paralelo de Múltiples Estudiantes en Aula
+   */
+  private async procesarRostroMultitud(video: HTMLVideoElement): Promise<void> {
+    const sesion = this.sesion();
+    if (!sesion) return;
+
+    const caras = await this.rostro.describirMultitud(video);
+    if (!caras || caras.length === 0) {
+      this.carasEnPantalla.set([]);
+      return;
+    }
+
+    const catalogo = this.biometriaGrupo();
+    const carasPantalla: CaraEnPantalla[] = [];
+    const idsParaMarcar: number[] = [];
+    const ahora = Date.now();
+
+    for (let idx = 0; idx < caras.length; idx++) {
+      const cara = caras[idx];
+      const pos = this.calcularCoordenadasPantalla(cara.box);
+      const match = this.rostro.hacerMatch(cara.vector, catalogo, 0.50);
+
+      if (match) {
+        const ya = this.estudianteYaRegistrado(match.estudianteId);
+        carasPantalla.push({
+          id: `cara-${match.estudianteId}`,
+          ...pos,
+          nombre: match.nombre,
+          documento: match.documento,
+          estudianteId: match.estudianteId,
+          confianza: match.confianza,
+          estado: ya ? 'YaRegistrado' : 'Anotado',
+          registrado: ya
+        });
+
+        const ultimoProcesado = this.cooldowns.get(match.estudianteId) || 0;
+        if (!ya && ahora - ultimoProcesado > 3000) {
+          idsParaMarcar.push(match.estudianteId);
+          this.cooldowns.set(match.estudianteId, ahora);
+        }
+      } else {
+        carasPantalla.push({
+          id: `cara-anon-${idx}`,
+          ...pos,
+          nombre: 'Escaneando...',
+          estado: 'Consultando',
+          registrado: false
+        });
+      }
+    }
+
+    this.carasEnPantalla.set(carasPantalla);
+
+    if (idsParaMarcar.length > 0) {
+      this.api.marcarFacial(sesion.id, { estudianteIds: idsParaMarcar }).subscribe({
+        next: (res) => {
+          let huboNuevo = false;
+          let ultimoNombre = '';
+          for (const m of res.marcados || []) {
+            if (m.estado === 'Anotado') {
+              this.anotarEnLista(m.nombre);
+              huboNuevo = true;
+              ultimoNombre = m.nombre;
+            }
+          }
+          if (huboNuevo) {
             this.sonar();
             this.activarFeedbackCarnet();
-            this.anotarEnLista(final.nombre);
+            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            this.ultimoEscaneado.set({
+              nombre: idsParaMarcar.length === 1 ? ultimoNombre : `${idsParaMarcar.length} estudiantes registrados`,
+              estado: 'Anotado',
+              hora: horaActual,
+              origen: 'rostro'
+            });
           }
-        },
-        error: () => this.confirmandoIds.delete(id)
+        }
       });
     }
-    this.ocultarAusentes(vistos);
+  }
+
+  private estudianteYaRegistrado(estudianteId: number): boolean {
+    const sesion = this.sesion();
+    if (!sesion) return false;
+    const est = sesion.estudiantes.find((e) => e.id === estudianteId);
+    return est?.estado === 'Anotado';
+  }
+
+  private calcularCoordenadasPantalla(box: { x: number; y: number; width: number; height: number }): { x: number; y: number; w: number; h: number } {
+    const video = this.video?.nativeElement;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      return { x: box.x, y: box.y, w: box.width, h: box.height };
+    }
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const cw = video.clientWidth || video.parentElement?.clientWidth || vw;
+    const ch = video.clientHeight || video.parentElement?.clientHeight || vh;
+
+    // Ajuste de escala exacto según object-fit: cover
+    const escala = Math.max(cw / vw, ch / vh);
+    const offsetX = (cw - vw * escala) / 2;
+    const offsetY = (ch - vh * escala) / 2;
+
+    return {
+      x: Math.round(offsetX + box.x * escala),
+      y: Math.round(offsetY + box.y * escala),
+      w: Math.round(box.width * escala),
+      h: Math.round(box.height * escala)
+    };
   }
 
   private recibir(crudo: string, caja?: DOMRectReadOnly, puntos?: Array<{ x: number; y: number }>): void {
     const raw = (crudo || '').trim();
     if (!raw) return;
 
-    // Extracción limpia del token: aqr_... o número de documento del alumno
     const matchAqr = raw.match(/aqr_[0-9a-f]{32}/i);
     const matchDoc = raw.match(/\b\d{6,12}\b/);
     const token = matchAqr ? matchAqr[0].toLowerCase() : (matchDoc ? matchDoc[0] : raw.toLowerCase());

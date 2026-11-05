@@ -404,6 +404,54 @@ public static class DbSeeder
             }
         }
 
+        // Asegurar sesiones y registros de asistencia para los demás grupos (10B, 9A, 11A)
+        var otrosCursosSeed = new[]
+        {
+            (g10B, matFisica, profCarlos),
+            (g9A, matCastellano, profMartha),
+            (g11A, matQuimica, profClaudia)
+        };
+        var hoySeed = Reloj.Hoy();
+        foreach (var (grpItem, matItem, profItem) in otrosCursosSeed)
+        {
+            if (grpItem != null && matItem != null && profItem != null && !db.Sesiones.Any(s => s.GrupoId == grpItem.Id))
+            {
+                var estsGrupo = db.Estudiantes.Where(e => e.GrupoId == grpItem.Id).ToList();
+                for (int d = 5; d >= 1; d--)
+                {
+                    var fechaSesion = hoySeed.AddDays(-d);
+                    var ses = new Sesion
+                    {
+                        MateriaId = matItem.Id,
+                        GrupoId = grpItem.Id,
+                        ProfesorId = profItem.Id,
+                        Fecha = fechaSesion,
+                        CreadaEn = DateTime.UtcNow.AddDays(-d)
+                    };
+                    db.Sesiones.Add(ses);
+                    db.SaveChanges();
+
+                    for (int idx = 0; idx < estsGrupo.Count; idx++)
+                    {
+                        var alumno = estsGrupo[idx];
+                        // Simular inasistencias controladas para métricas de riesgo
+                        bool esFalla = (idx == 1 && (d == 2 || d == 4)) || (idx == 2 && d == 3);
+                        if (!esFalla)
+                        {
+                            db.Asistencias.Add(new Asistencia
+                            {
+                                SesionId = ses.Id,
+                                EstudianteId = alumno.Id,
+                                MarcadaEn = DateTime.UtcNow.AddDays(-d).AddHours(7 + idx * 0.1),
+                                Origen = (idx % 2 == 0) ? "Qr" : "Rostro"
+                            });
+                        }
+                    }
+                    db.SaveChanges();
+                }
+            }
+        }
+
         // Seeder de Horarios de Clases si no existen
         if (!db.HorariosClase.Any())
         {

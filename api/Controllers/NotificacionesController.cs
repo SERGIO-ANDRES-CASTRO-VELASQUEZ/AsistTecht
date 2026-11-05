@@ -90,6 +90,46 @@ public class NotificacionesController : ControllerBase
         return Ok(new { exito = true, actualizadas = notifs.Count });
     }
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Eliminar(int id)
+    {
+        var rol = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        var usuarioId = UsuarioId();
+
+        var notif = await _db.Notificaciones.FirstOrDefaultAsync(n => n.Id == id);
+        if (notif is null)
+            return NotFound(new { mensaje = "Notificación no encontrada." });
+
+        if (rol != "Admin" && notif.RolDestinatario != "Todos" &&
+            !(notif.RolDestinatario == rol && (notif.UsuarioDestinatarioId == null || notif.UsuarioDestinatarioId == usuarioId)))
+        {
+            return Forbid();
+        }
+
+        _db.Notificaciones.Remove(notif);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { exito = true, mensaje = "Notificación eliminada correctamente." });
+    }
+
+    [HttpDelete("todas")]
+    [HttpDelete]
+    public async Task<IActionResult> VaciarTodas()
+    {
+        var rol = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        var usuarioId = UsuarioId();
+
+        var notifs = await _db.Notificaciones
+            .Where(n => n.RolDestinatario == "Todos" ||
+                        (n.RolDestinatario == rol && (n.UsuarioDestinatarioId == null || n.UsuarioDestinatarioId == usuarioId)))
+            .ToListAsync();
+
+        _db.Notificaciones.RemoveRange(notifs);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { exito = true, eliminadas = notifs.Count, mensaje = "Todas las notificaciones han sido eliminadas." });
+    }
+
     private async Task SembrarNotificacionesIniciales(string rol, int usuarioId)
     {
         var ahora = DateTime.UtcNow;

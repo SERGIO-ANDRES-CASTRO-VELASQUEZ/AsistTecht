@@ -49,6 +49,41 @@ public class EstudiantesController : ControllerBase
         return Ok(lista);
     }
 
+    [HttpGet("buscar")]
+    public async Task<IActionResult> Buscar([FromQuery] string? q, [FromQuery] int limite = 12)
+    {
+        IQueryable<Estudiante> query = _db.Estudiantes.AsQueryable();
+
+        if (User.IsInRole("Profesor"))
+        {
+            var id = ProfesorId();
+            query = query.Where(e =>
+                e.Grupo != null && (e.Grupo.ProfesorId == id || e.Grupo.Materias.Any(v => v.Materia!.ProfesorId == id)));
+        }
+
+        var busq = (q ?? "").Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(busq))
+        {
+            query = query.Where(e => e.Nombre.ToLower().Contains(busq) || e.Documento.Contains(busq));
+        }
+
+        var lista = await query
+            .OrderBy(e => e.Nombre)
+            .Take(Math.Min(limite, 50))
+            .Select(e => new
+            {
+                e.Id,
+                e.Nombre,
+                e.Documento,
+                e.GrupoId,
+                grupo = e.Grupo != null ? e.Grupo.Nombre : "Sin grupo",
+                activo = e.Activo
+            })
+            .ToListAsync();
+
+        return Ok(lista);
+    }
+
     [HttpPost]
     [Authorize(Policy = "Profesor")]
     public async Task<IActionResult> Crear([FromBody] EstudianteRequest body)

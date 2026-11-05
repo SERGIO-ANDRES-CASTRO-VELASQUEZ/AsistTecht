@@ -129,7 +129,69 @@ public class ConvivenciaController : ControllerBase
         return Ok(new { mensaje = "Anotación registrada en el observador escolar y notificada al estudiante y su familia con éxito.", id = observacion.Id });
     }
 
+    [Authorize(Roles = "Profesor,Director,Admin")]
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarObservacionRequest body)
+    {
+        var obs = await _db.ObservacionesConvivencia
+            .Include(o => o.Estudiante)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (obs is null)
+            return NotFound(new { mensaje = "No se encontró la observación de convivencia." });
+
+        var rol = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        var usuarioId = UsuarioId();
+
+        // Solo el docente autor, o la dirección/administración, pueden editar la anotación
+        if (rol == "Profesor" && obs.ProfesorId != usuarioId)
+            return Forbid();
+
+        var titulo = (body.Titulo ?? "").Trim();
+        var descripcion = (body.Descripcion ?? "").Trim();
+        var tipo = (body.Tipo ?? obs.Tipo).Trim();
+
+        if (string.IsNullOrEmpty(titulo) || string.IsNullOrEmpty(descripcion))
+            return BadRequest(new { mensaje = "El título y la descripción son obligatorios." });
+
+        obs.Titulo = titulo;
+        obs.Descripcion = descripcion;
+        obs.Tipo = tipo;
+        obs.Compromiso = string.IsNullOrWhiteSpace(body.Compromiso) ? null : body.Compromiso.Trim();
+        if (DateOnly.TryParse(body.Fecha, out var f))
+        {
+            obs.Fecha = f;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { exito = true, mensaje = "Anotación del observador escolar actualizada con éxito.", id = obs.Id });
+    }
+
+    [Authorize(Roles = "Profesor,Director,Admin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Eliminar(int id)
+    {
+        var obs = await _db.ObservacionesConvivencia
+            .Include(o => o.Estudiante)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (obs is null)
+            return NotFound(new { mensaje = "No se encontró la observación de convivencia." });
+
+        var rol = User.FindFirstValue(ClaimTypes.Role) ?? "";
+        var usuarioId = UsuarioId();
+
+        // Solo el docente autor, o la dirección/administración, pueden anular/eliminar
+        if (rol == "Profesor" && obs.ProfesorId != usuarioId)
+            return Forbid();
+
+        _db.ObservacionesConvivencia.Remove(obs);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { exito = true, mensaje = "Anotación de convivencia eliminada/anulada con éxito." });
+    }
+
     private int UsuarioId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }
 
 public record ObservacionRequest(int EstudianteId, string? Tipo, string? Titulo, string? Descripcion, string? Compromiso, string? Fecha);
+public record ActualizarObservacionRequest(string? Tipo, string? Titulo, string? Descripcion, string? Compromiso, string? Fecha);

@@ -31,9 +31,11 @@ export class AuthService {
     }
   }
 
-  login(usuario: string, password: string, rol: Rol) {
+  login(usuario: string, password: string, rol?: Rol) {
+    const body: any = { usuario, password };
+    if (rol) body.rol = rol;
     return this.http
-      .post<SesionUsuario>('/api/auth/login', { usuario, password, rol })
+      .post<SesionUsuario>('/api/auth/login', body)
       .pipe(tap((sesion) => this.guardar(sesion)));
   }
 

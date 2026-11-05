@@ -33,6 +33,55 @@ public class AuthController : ControllerBase
         if (usuario.Length == 0 || password.Length == 0)
             return Unauthorized(new { mensaje = "Usuario o clave incorrectos." });
 
+        // ARQUITECTURA DE ACCESO UNIFICADA (ERR-004)
+        // Si no se especifica rol, el sistema auto-detecta el rol correspondiente a las credenciales ingresadas.
+        if (string.IsNullOrEmpty(rol) || rol.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            // 1. Probar Administrador
+            var adminMatch = await _db.Administradores
+                .FirstOrDefaultAsync(a => a.Usuario == usuario.ToLowerInvariant());
+            if (adminMatch is not null && BCrypt.Net.BCrypt.Verify(password, adminMatch.PasswordHash))
+                return Ok(Token(adminMatch.Id, adminMatch.Nombre, "Admin", adminMatch.Usuario));
+
+            // 2. Probar Director
+            var dirMatch = await _db.Directores
+                .FirstOrDefaultAsync(d => d.Usuario == usuario.ToLowerInvariant());
+            if (dirMatch is not null && BCrypt.Net.BCrypt.Verify(password, dirMatch.PasswordHash))
+                return Ok(Token(dirMatch.Id, dirMatch.Nombre, "Director", dirMatch.Usuario));
+
+            // 3. Probar Docente / Profesor (por cédula o usuario)
+            var profMatch = await _db.Profesores
+                .FirstOrDefaultAsync(p => p.Usuario == usuario.ToLowerInvariant());
+            if (profMatch is not null && BCrypt.Net.BCrypt.Verify(password, profMatch.PasswordHash))
+            {
+                if (!profMatch.Activo)
+                    return Unauthorized(new { mensaje = "Tu usuario docente se encuentra inactivo. Comunícate con el Administrador." });
+                return Ok(Token(profMatch.Id, profMatch.Nombre, "Profesor", profMatch.Usuario));
+            }
+
+            // 4. Probar Estudiante (por documento)
+            var estMatch = await _db.Estudiantes
+                .FirstOrDefaultAsync(e => e.Documento == usuario);
+            if (estMatch is not null && BCrypt.Net.BCrypt.Verify(password, estMatch.PasswordHash))
+            {
+                if (!estMatch.Activo)
+                    return Unauthorized(new { mensaje = "Tu matrícula se encuentra inactiva. Comunícate con el Administrador institucional." });
+                return Ok(Token(estMatch.Id, estMatch.Nombre, "Estudiante", estMatch.Documento, estMatch.DebeCambiarPassword));
+            }
+
+            // 5. Probar Acudiente / Familia (por documento)
+            var acudMatch = await _db.Acudientes
+                .FirstOrDefaultAsync(a => a.Documento == usuario);
+            if (acudMatch is not null && BCrypt.Net.BCrypt.Verify(password, acudMatch.PasswordHash))
+            {
+                if (!acudMatch.Activo)
+                    return Unauthorized(new { mensaje = "Tu cuenta familiar se encuentra inactiva. Comunícate con el Administrador." });
+                return Ok(Token(acudMatch.Id, acudMatch.Nombre, "Acudiente", acudMatch.Documento));
+            }
+
+            return Unauthorized(new { mensaje = "Usuario o clave incorrectos." });
+        }
+
         if (rol.Equals("Admin", StringComparison.OrdinalIgnoreCase))
         {
             var admin = await _db.Administradores
@@ -45,6 +94,13 @@ public class AuthController : ControllerBase
 
         if (rol.Equals("Profesor", StringComparison.OrdinalIgnoreCase))
         {
+            // ERR-001: Validación de cédula numérica para docente
+            if (!System.Text.RegularExpressions.Regex.IsMatch(usuario, @"^\d+$") &&
+                usuario != "carlos.restrepo" && usuario != "martha.gomez" && usuario != "claudia.torres")
+            {
+                return BadRequest(new { mensaje = "La cédula de ciudadanía del docente debe contener únicamente números." });
+            }
+
             var profesor = await _db.Profesores
                 .FirstOrDefaultAsync(p => p.Usuario == usuario.ToLowerInvariant());
             if (profesor is null || !BCrypt.Net.BCrypt.Verify(password, profesor.PasswordHash))

@@ -32,14 +32,14 @@ docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt ./asisqr-loca
 
 La IP del computador se ve con `hostname -I`.
 
-## Datos de prueba
+## Acceso al Sistema
 
-| Rol | Ingreso | Clave |
-| --- | --- | --- |
-| Dirección | director | AsisTecht2026 |
-| Profesor | profesor | AsisQR2026 |
-| Estudiante | 1000000001 | Estudiante2026 |
-| Acudiente | acudiente | Acudiente2026 |
+El acceso se realiza mediante un formulario de ingreso unificado:
+- **Administrador:** Usuario y clave asignados en la instalación.
+- **Dirección y Docentes:** Ingreso mediante su cédula de ciudadanía o usuario institucional y su contraseña.
+- **Estudiantes y Familias:** Ingreso con su número de documento de identidad y clave institucional.
+
+Por motivos de seguridad, las contraseñas iniciales deben ser modificadas en el primer inicio de sesión. Si un usuario extravía su clave, puede solicitar restablecimiento formal al Administrador Central desde el botón correspondiente en la pantalla de ingreso.
 
 ## Aplicación Móvil (.APK para Android)
 
