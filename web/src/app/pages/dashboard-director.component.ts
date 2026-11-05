@@ -302,8 +302,8 @@ import { mensajeError } from '../core/errores';
             </div>
           </div>
 
-          <!-- Tabla Visual de Estudiantes con Inasistencias -->
-          <div class="tabla-fallas-container">
+          <!-- Tabla Visual de Estudiantes con Inasistencias (Desktop) -->
+          <div class="tabla-fallas-container tabla-fallas-desktop">
             <table class="tabla-fallas">
               <thead>
                 <tr>
@@ -402,6 +402,88 @@ import { mensajeError } from '../core/errores';
                 }
               </tbody>
             </table>
+          </div>
+
+          <!-- Vista en Tarjetas para Celular / Dispositivos Móviles -->
+          <div class="tabla-fallas-mobile">
+            @for (est of estudiantesFallasFiltrados(); track est.estudianteId) {
+              <div class="mobile-falla-card" [style.border-left]="'4px solid ' + (est.porcentajeInasistencia >= 25 ? '#ef4444' : (est.porcentajeInasistencia >= 15 ? '#f59e0b' : '#10b981'))">
+                <div class="mobile-falla-header">
+                  <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <div class="avatar-circulo" style="width: 38px; height: 38px; font-size: 0.95rem; font-weight: 800; background: var(--primary-light); color: var(--primary); flex-shrink: 0;">
+                      {{ est.nombre.charAt(0) }}
+                    </div>
+                    <div>
+                      <strong style="color: var(--text-primary); font-size: 0.95rem; display: block;">{{ est.nombre }}</strong>
+                      <span style="font-size: 0.74rem; color: var(--text-muted);">Doc. {{ est.documento }} · Grado {{ est.grupo }}</span>
+                    </div>
+                  </div>
+                  <span class="badge" [class]="est.totalFallas > 0 ? (est.nivelRiesgo === 'Critico' ? 'badge-rojo' : 'badge-amarillo') : 'badge-verde'">
+                    {{ est.totalFallas }} fallas
+                  </span>
+                </div>
+
+                <div class="mobile-falla-stats">
+                  <div>
+                    <span class="mobile-falla-stat-val" style="color: var(--primary);">{{ est.totalAsistencias }}/{{ est.totalSesiones }}</span>
+                    <span class="mobile-falla-stat-lbl">Asistencias</span>
+                  </div>
+                  <div>
+                    <span class="mobile-falla-stat-val" [style.color]="est.porcentajeInasistencia >= 25 ? '#ef4444' : (est.porcentajeInasistencia >= 15 ? '#f59e0b' : 'var(--text-primary)')">
+                      {{ est.porcentajeInasistencia }}%
+                    </span>
+                    <span class="mobile-falla-stat-lbl">% Ausentismo</span>
+                  </div>
+                  <div>
+                    <span class="mobile-falla-stat-val" style="font-size: 0.74rem; margin-top: 0.15rem;">
+                      {{ est.nivelRiesgo === 'Critico' ? '🔴 Pérdida' : (est.nivelRiesgo === 'Alto' ? '🟡 Alerta' : (est.nivelRiesgo === 'Medio' ? '🔵 Leve' : '🟢 Normal')) }}
+                    </span>
+                    <span class="mobile-falla-stat-lbl">Nivel Riesgo</span>
+                  </div>
+                </div>
+
+                <!-- Barra gráfica de ausentismo con límite del 25% -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 0.25rem;">
+                    <span style="color: #ef4444; font-weight: 600;">Límite reglamentario 25%</span>
+                    <strong>{{ est.porcentajeInasistencia }}% de inasistencia</strong>
+                  </div>
+                  <div class="barra-fallas-mini" style="max-width: 100%;">
+                    <div class="linea-limite-25"></div>
+                    <div class="barra-fallas-fill" [style.width.%]="est.porcentajeInasistencia"
+                      [style.background]="est.porcentajeInasistencia >= 25 ? '#ef4444' : (est.porcentajeInasistencia >= 15 ? '#f59e0b' : '#10b981')"></div>
+                  </div>
+                </div>
+
+                <div class="mobile-falla-acudiente">
+                  <div>
+                    <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">Acudiente:</span>
+                    <strong style="color: var(--text-primary);">{{ est.acudienteNombre }}</strong>
+                  </div>
+                  @if (est.acudienteTelefono && est.acudienteTelefono !== 'Sin registro') {
+                    <a [href]="'tel:' + est.acudienteTelefono" class="btn-secundario" style="font-size: 0.75rem; padding: 0.3rem 0.65rem; border-radius: var(--radius-pill); text-decoration: none;">
+                      📞 Llamar
+                    </a>
+                  }
+                </div>
+
+                <div class="mobile-falla-actions">
+                  <a [routerLink]="['/director/convivencia']" [queryParams]="{ estudianteId: est.estudianteId }" class="btn-secundario">
+                    <span>⚖️</span> Citar / Observador
+                  </a>
+                  <a [routerLink]="['/director/boletin']" [queryParams]="{ estudianteId: est.estudianteId }" class="btn-principal">
+                    <span>📜</span> Ver Boletín
+                  </a>
+                </div>
+              </div>
+            } @empty {
+              <div class="card" style="text-align: center; padding: 2rem;">
+                <span style="font-size: 1.8rem;">🎉</span>
+                <p style="margin: 0.4rem 0 0; color: var(--grade-superior); font-weight: 600;">
+                  No hay estudiantes que coincidan con los filtros seleccionados.
+                </p>
+              </div>
+            }
           </div>
         </div>
 

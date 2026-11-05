@@ -92,47 +92,73 @@ public static class DbSeeder
 
     private static void CompletarDatosPrueba(AppDb db)
     {
-        var e1 = db.Estudiantes.FirstOrDefault(e => e.Documento == "1000000001");
-        var e2 = db.Estudiantes.FirstOrDefault(e => e.Documento == "1000000002");
         var profesor = db.Profesores.FirstOrDefault();
-        var materia = db.Materias.FirstOrDefault();
-        var grupo = db.Grupos.FirstOrDefault();
-
-        if (e1 is null || e2 is null || profesor is null || materia is null || grupo is null)
-            return;
-
-        // Asegurar foto y rostros biométricos de prueba para Laura Mendoza (e1)
-        if (e1.Foto is null || e1.Foto.Length == 0)
+        if (profesor is null)
         {
-            using var fotoImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(250, 320);
-            fotoImg.Mutate(ctx =>
+            profesor = new Profesor
             {
-                ctx.Fill(SixLabors.ImageSharp.Color.ParseHex("1A382E"));
-            });
-            using var ms = new MemoryStream();
-            fotoImg.SaveAsPng(ms);
-            e1.Foto = ms.ToArray();
-            e1.FotoTipo = "image/png";
+                Nombre = "Docente de prueba",
+                Usuario = "profesor",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("AsisQR2026")
+            };
+            db.Profesores.Add(profesor);
             db.SaveChanges();
         }
 
-        if (!db.Rostros.Any(r => r.EstudianteId == e1.Id))
+        var grupo = db.Grupos.FirstOrDefault();
+        if (grupo is null)
         {
-            foreach (var pose in RostroUtil.Poses)
-            {
-                var vec = new float[128];
-                var rnd = new Random(101 + pose.Length);
-                for (int v = 0; v < 128; v++) vec[v] = (float)(rnd.NextDouble() * 2 - 1);
-                float norma = (float)Math.Sqrt(vec.Sum(x => x * x));
-                for (int v = 0; v < 128; v++) vec[v] /= (norma > 0 ? norma : 1);
-                db.Rostros.Add(new Rostro
-                {
-                    EstudianteId = e1.Id,
-                    Pose = pose,
-                    Vector = RostroUtil.Guardar(vec)
-                });
-            }
+            grupo = new Grupo { Nombre = "10A", ProfesorId = profesor.Id };
+            db.Grupos.Add(grupo);
             db.SaveChanges();
+        }
+
+        var materia = db.Materias.FirstOrDefault();
+        if (materia is null)
+        {
+            materia = new Materia { Nombre = "Matemáticas", ProfesorId = profesor.Id };
+            db.Materias.Add(materia);
+            db.SaveChanges();
+        }
+
+        var e1 = db.Estudiantes.FirstOrDefault(e => e.Documento == "1000000001") ?? db.Estudiantes.FirstOrDefault();
+        var e2 = db.Estudiantes.FirstOrDefault(e => e.Documento == "1000000002") ?? db.Estudiantes.Skip(1).FirstOrDefault() ?? e1;
+
+        // Asegurar foto y rostros biométricos de prueba para Laura Mendoza (e1)
+        if (e1 is not null)
+        {
+            if (e1.Foto is null || e1.Foto.Length == 0)
+            {
+                using var fotoImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(250, 320);
+                fotoImg.Mutate(ctx =>
+                {
+                    ctx.Fill(SixLabors.ImageSharp.Color.ParseHex("1A382E"));
+                });
+                using var ms = new MemoryStream();
+                fotoImg.SaveAsPng(ms);
+                e1.Foto = ms.ToArray();
+                e1.FotoTipo = "image/png";
+                db.SaveChanges();
+            }
+
+            if (!db.Rostros.Any(r => r.EstudianteId == e1.Id))
+            {
+                foreach (var pose in RostroUtil.Poses)
+                {
+                    var vec = new float[128];
+                    var rnd = new Random(101 + pose.Length);
+                    for (int v = 0; v < 128; v++) vec[v] = (float)(rnd.NextDouble() * 2 - 1);
+                    float norma = (float)Math.Sqrt(vec.Sum(x => x * x));
+                    for (int v = 0; v < 128; v++) vec[v] /= (norma > 0 ? norma : 1);
+                    db.Rostros.Add(new Rostro
+                    {
+                        EstudianteId = e1.Id,
+                        Pose = pose,
+                        Vector = RostroUtil.Guardar(vec)
+                    });
+                }
+                db.SaveChanges();
+            }
         }
 
         // Seeder de columnas de notas si no existen
@@ -143,17 +169,20 @@ public static class DbSeeder
             db.NotaColumnas.AddRange(col1, col2);
             db.SaveChanges();
 
-            db.Notas.AddRange(
-                new Nota { ColumnaId = col1.Id, EstudianteId = e1.Id, Valor = 4.5m },
-                new Nota { ColumnaId = col2.Id, EstudianteId = e1.Id, Valor = 4.2m },
-                new Nota { ColumnaId = col1.Id, EstudianteId = e2.Id, Valor = 2.8m },
-                new Nota { ColumnaId = col2.Id, EstudianteId = e2.Id, Valor = 2.5m }
-            );
-            db.SaveChanges();
+            if (e1 is not null && e2 is not null)
+            {
+                db.Notas.AddRange(
+                    new Nota { ColumnaId = col1.Id, EstudianteId = e1.Id, Valor = 4.5m },
+                    new Nota { ColumnaId = col2.Id, EstudianteId = e1.Id, Valor = 4.2m },
+                    new Nota { ColumnaId = col1.Id, EstudianteId = e2.Id, Valor = 2.8m },
+                    new Nota { ColumnaId = col2.Id, EstudianteId = e2.Id, Valor = 2.5m }
+                );
+                db.SaveChanges();
+            }
         }
 
         // Seeder de convivencia si no existen
-        if (!db.ObservacionesConvivencia.Any())
+        if (!db.ObservacionesConvivencia.Any() && e1 is not null && e2 is not null)
         {
             var hoy = Reloj.Hoy();
             db.ObservacionesConvivencia.AddRange(
@@ -184,7 +213,7 @@ public static class DbSeeder
         }
 
         // Seeder de sesiones históricas de asistencia para gráficos
-        if (!db.Sesiones.Any(s => s.MateriaId == materia.Id && s.GrupoId == grupo.Id))
+        if (!db.Sesiones.Any(s => s.MateriaId == materia.Id && s.GrupoId == grupo.Id) && e1 is not null)
         {
             var hoy = Reloj.Hoy();
             for (int i = 5; i >= 1; i--)
@@ -210,7 +239,7 @@ public static class DbSeeder
                     Origen = "Qr"
                 });
 
-                if (i % 2 == 1) // e2 solo vino en días impares
+                if (e2 is not null && i % 2 == 1) // e2 solo vino en días impares
                 {
                     db.Asistencias.Add(new Asistencia
                     {
@@ -334,8 +363,8 @@ public static class DbSeeder
         }
 
         // Vincular materias a los grupos si no existen
-        var todosLosGrupos = new[] { grupo, g10B, g9A, g11A };
-        var todasLasMaterias = new[] { materia, matFisica, matCastellano, matQuimica, matTecno, matIngles };
+        var todosLosGrupos = db.Grupos.ToList();
+        var todasLasMaterias = db.Materias.ToList();
         foreach (var grp in todosLosGrupos)
         {
             foreach (var mat in todasLasMaterias)
@@ -379,76 +408,199 @@ public static class DbSeeder
         }
         db.SaveChanges();
 
-        // Agregar notas de ejemplo para todas las materias del grupo 10A
-        foreach (var mat in todasLasMaterias)
-        {
-            if (!db.NotaColumnas.Any(c => c.MateriaId == mat.Id && c.GrupoId == grupo.Id))
-            {
-                var col1 = new NotaColumna { MateriaId = mat.Id, GrupoId = grupo.Id, Nombre = "Actividad 1", Orden = 1 };
-                var col2 = new NotaColumna { MateriaId = mat.Id, GrupoId = grupo.Id, Nombre = "Evaluación Parcial", Orden = 2 };
-                db.NotaColumnas.AddRange(col1, col2);
-                db.SaveChanges();
+        // =========================================================================
+        // 1. ASIGNAR ACUDIENTES A TODOS LOS ESTUDIANTES ACTIVOS
+        // =========================================================================
+        var todosEstudiantesActivos = db.Estudiantes.Where(e => e.Activo).ToList();
+        var nombresPadres = new[] { "Carlos", "María", "José", "Ana", "Jorge", "Martha", "Andrés", "Claudia", "Fernando", "Patricia", "Luis", "Gloria", "Mauricio", "Sandra" };
 
-                var estudiantes10A = db.Estudiantes.Where(e => e.GrupoId == grupo.Id).ToList();
-                var rnd = new Random(mat.Id * 17);
-                foreach (var est in estudiantes10A)
+        int acudIndex = 1;
+        foreach (var est in todosEstudiantesActivos)
+        {
+            if (est.AcudienteId == null)
+            {
+                var partesNombre = est.Nombre.Trim().Split(' ');
+                var apellido = partesNombre.Length > 1 ? partesNombre[^1] : "Gómez";
+                var nombrePadre = $"{nombresPadres[acudIndex % nombresPadres.Length]} {apellido}";
+                var docAcud = $"acud{est.Documento}";
+
+                var acud = db.Acudientes.FirstOrDefault(a => a.Documento == docAcud);
+                if (acud == null)
                 {
-                    decimal n1 = Math.Round((decimal)(3.0 + rnd.NextDouble() * 2.0), 1);
-                    decimal n2 = Math.Round((decimal)(2.8 + rnd.NextDouble() * 2.2), 1);
-                    db.Notas.AddRange(
-                        new Nota { ColumnaId = col1.Id, EstudianteId = est.Id, Valor = Math.Min(5.0m, n1) },
-                        new Nota { ColumnaId = col2.Id, EstudianteId = est.Id, Valor = Math.Min(5.0m, n2) }
-                    );
+                    acud = new Acudiente
+                    {
+                        Nombre = $"{nombrePadre} (Acudiente)",
+                        Documento = docAcud,
+                        Telefono = $"310{1000000 + (acudIndex * 179234) % 8999999}",
+                        Correo = $"acudiente.{est.Documento}@colegio.edu.co",
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("Acudiente2026*")
+                    };
+                    db.Acudientes.Add(acud);
+                    db.SaveChanges();
+                }
+
+                est.AcudienteId = acud.Id;
+                db.SaveChanges();
+                acudIndex++;
+            }
+        }
+
+        // =========================================================================
+        // 2. CALIFICACIONES Y NOTAS PARA TODOS LOS CURSOS Y MATERIAS
+        // =========================================================================
+        foreach (var grp in todosLosGrupos)
+        {
+            foreach (var mat in todasLasMaterias)
+            {
+                if (!db.MateriaGrupos.Any(mg => mg.GrupoId == grp.Id && mg.MateriaId == mat.Id))
+                {
+                    db.MateriaGrupos.Add(new MateriaGrupo { GrupoId = grp.Id, MateriaId = mat.Id });
+                    db.SaveChanges();
+                }
+
+                if (!db.NotaColumnas.Any(c => c.MateriaId == mat.Id && c.GrupoId == grp.Id))
+                {
+                    var col1 = new NotaColumna { MateriaId = mat.Id, GrupoId = grp.Id, Nombre = "Actividad 1", Orden = 1 };
+                    var col2 = new NotaColumna { MateriaId = mat.Id, GrupoId = grp.Id, Nombre = "Evaluación Parcial", Orden = 2 };
+                    var col3 = new NotaColumna { MateriaId = mat.Id, GrupoId = grp.Id, Nombre = "Taller en Clase", Orden = 3 };
+                    db.NotaColumnas.AddRange(col1, col2, col3);
+                    db.SaveChanges();
+                }
+
+                var cols = db.NotaColumnas.Where(c => c.MateriaId == mat.Id && c.GrupoId == grp.Id).ToList();
+                var estsDelGrupo = db.Estudiantes.Where(e => e.GrupoId == grp.Id && e.Activo).ToList();
+
+                var rnd = new Random(grp.Id * 31 + mat.Id * 17);
+                foreach (var est in estsDelGrupo)
+                {
+                    foreach (var col in cols)
+                    {
+                        if (!db.Notas.Any(n => n.ColumnaId == col.Id && n.EstudianteId == est.Id))
+                        {
+                            // Distribución realista: 85% aprobados (3.2 a 4.9), 15% en recuperación (2.3 a 2.9)
+                            double baseNota = (est.Id % 6 == 0) ? (2.3 + rnd.NextDouble() * 0.6) : (3.3 + rnd.NextDouble() * 1.6);
+                            decimal notaFinal = Math.Round((decimal)Math.Clamp(baseNota, 1.5, 5.0), 1);
+                            db.Notas.Add(new Nota
+                            {
+                                ColumnaId = col.Id,
+                                EstudianteId = est.Id,
+                                Valor = notaFinal
+                            });
+                        }
+                    }
                 }
                 db.SaveChanges();
             }
         }
 
-        // Asegurar sesiones y registros de asistencia para los demás grupos (10B, 9A, 11A)
-        var otrosCursosSeed = new[]
-        {
-            (g10B, matFisica, profCarlos),
-            (g9A, matCastellano, profMartha),
-            (g11A, matQuimica, profClaudia)
-        };
+        // =========================================================================
+        // 3. SESIONES Y ASISTENCIAS HISTÓRICAS RECIENTES PARA TODOS LOS GRUPOS (INCLUYENDO HOY)
+        // =========================================================================
         var hoySeed = Reloj.Hoy();
-        foreach (var (grpItem, matItem, profItem) in otrosCursosSeed)
+        todosLosGrupos = db.Grupos.ToList();
+        foreach (var grp in todosLosGrupos)
         {
-            if (grpItem != null && matItem != null && profItem != null && !db.Sesiones.Any(s => s.GrupoId == grpItem.Id))
+            var estsGrupo = db.Estudiantes.Where(e => e.GrupoId == grp.Id && e.Activo).ToList();
+            if (!estsGrupo.Any()) continue;
+
+            var matGrupo = db.MateriaGrupos.Where(mg => mg.GrupoId == grp.Id).Select(mg => mg.Materia).FirstOrDefault() ?? materia;
+            var profGrupo = matGrupo.ProfesorId;
+
+            // Generar sesiones para los últimos 7 días hábiles (incluyendo hoy d = 0)
+            for (int d = 6; d >= 0; d--)
             {
-                var estsGrupo = db.Estudiantes.Where(e => e.GrupoId == grpItem.Id).ToList();
-                for (int d = 5; d >= 1; d--)
+                var fechaSesion = hoySeed.AddDays(-d);
+                if (fechaSesion.DayOfWeek == DayOfWeek.Sunday) continue;
+
+                var ses = db.Sesiones.FirstOrDefault(s => s.GrupoId == grp.Id && s.Fecha == fechaSesion);
+                if (ses == null)
                 {
-                    var fechaSesion = hoySeed.AddDays(-d);
-                    var ses = new Sesion
+                    ses = new Sesion
                     {
-                        MateriaId = matItem.Id,
-                        GrupoId = grpItem.Id,
-                        ProfesorId = profItem.Id,
+                        MateriaId = matGrupo.Id,
+                        GrupoId = grp.Id,
+                        ProfesorId = profGrupo,
                         Fecha = fechaSesion,
                         CreadaEn = DateTime.UtcNow.AddDays(-d)
                     };
                     db.Sesiones.Add(ses);
                     db.SaveChanges();
+                }
 
-                    for (int idx = 0; idx < estsGrupo.Count; idx++)
+                var rndAsist = new Random(grp.Id * 43 + d * 13);
+                for (int idx = 0; idx < estsGrupo.Count; idx++)
+                {
+                    var alumno = estsGrupo[idx];
+                    bool yaMarcado = db.Asistencias.Any(a => a.SesionId == ses.Id && a.EstudianteId == alumno.Id);
+                    if (!yaMarcado)
                     {
-                        var alumno = estsGrupo[idx];
-                        // Simular inasistencias controladas para métricas de riesgo
-                        bool esFalla = (idx == 1 && (d == 2 || d == 4)) || (idx == 2 && d == 3);
-                        if (!esFalla)
+                        // Estudiante idx 0: asistencia perfecta (100%)
+                        // Estudiante idx 1: falta moderada (1 día)
+                        // Estudiante idx 2: faltas reiteradas (3 días = ~45% inasistencia para semáforo crítico)
+                        // Otros estudiantes: ~90% asistencia
+                        bool falta = (idx == 2 && (d == 1 || d == 3 || d == 5)) || (idx == 1 && d == 4) || (idx > 2 && rndAsist.NextDouble() < 0.12);
+
+                        if (!falta)
                         {
                             db.Asistencias.Add(new Asistencia
                             {
                                 SesionId = ses.Id,
                                 EstudianteId = alumno.Id,
-                                MarcadaEn = DateTime.UtcNow.AddDays(-d).AddHours(7 + idx * 0.1),
-                                Origen = (idx % 2 == 0) ? "Qr" : "Rostro"
+                                MarcadaEn = DateTime.UtcNow.AddDays(-d).AddHours(7).AddMinutes(rndAsist.Next(5, 30)),
+                                Origen = (rndAsist.NextDouble() < 0.55) ? "Qr" : "Rostro"
                             });
                         }
                     }
-                    db.SaveChanges();
                 }
+                db.SaveChanges();
+            }
+        }
+
+        // =========================================================================
+        // 4. OBSERVACIONES DE CONVIVENCIA ENRIQUECIDAS
+        // =========================================================================
+        if (db.ObservacionesConvivencia.Count() < 6)
+        {
+            var profesorObs = db.Profesores.FirstOrDefault() ?? profesor;
+            var alumnosObs = db.Estudiantes.Where(e => e.Activo).Take(5).ToList();
+            if (alumnosObs.Count >= 3)
+            {
+                db.ObservacionesConvivencia.AddRange(
+                    new ObservacionConvivencia
+                    {
+                        EstudianteId = alumnosObs[0].Id,
+                        ProfesorId = profesorObs.Id,
+                        Tipo = "Felicitacion",
+                        Titulo = "Liderazgo en proyecto de aula",
+                        Descripcion = "Destacada colaboración y apoyo a sus compañeros en la feria escolar de ciencias.",
+                        Compromiso = "Continuar fortaleciendo sus habilidades de trabajo en equipo.",
+                        Fecha = hoySeed.AddDays(-1),
+                        NotificadoAcudiente = true
+                    },
+                    new ObservacionConvivencia
+                    {
+                        EstudianteId = alumnosObs[1].Id,
+                        ProfesorId = profesorObs.Id,
+                        Tipo = "Atencion",
+                        Titulo = "Reiteradas llegadas tarde a primera hora",
+                        Descripcion = "El estudiante acumula retrasos al inicio de la jornada afectando el desarrollo de clase.",
+                        Compromiso = "Llegar puntual a las 06:50 AM y cumplir con los horarios del manual de convivencia.",
+                        Fecha = hoySeed.AddDays(-2),
+                        NotificadoAcudiente = true
+                    },
+                    new ObservacionConvivencia
+                    {
+                        EstudianteId = alumnosObs[2].Id,
+                        ProfesorId = profesorObs.Id,
+                        Tipo = "FaltaLeve",
+                        Titulo = "Uso indebido de celular en clase",
+                        Descripcion = "Manipuló su teléfono durante la explicación sin previa autorización pedagógica.",
+                        Compromiso = "Mantener el equipo apagado y guardado durante las horas académicas.",
+                        Fecha = hoySeed.AddDays(-3),
+                        NotificadoAcudiente = true
+                    }
+                );
+                db.SaveChanges();
             }
         }
 
