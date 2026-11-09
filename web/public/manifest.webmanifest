@@ -1,0 +1,19 @@
+{
+  "name": "AsisTecht - Gimnasio José Eustasio Rivera",
+  "short_name": "AsisTecht",
+  "description": "Sistema Institucional de Gestión Escolar, Calificaciones y Carnet Digital",
+  "start_url": "/ingreso",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1120",
+  "theme_color": "#0e6b52",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
