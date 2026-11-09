@@ -5334,3 +5334,63 @@ input:focus, select:focus, textarea:focus {
     flex: 1 1 100% !important;
   }
 }
+
+
+/* BUG-NET-03: Asistencia y Visor de Cámara sobre HTTPS Móvil */
+.https-camera-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(239, 68, 68, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.25rem;
+}
+.https-camera-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+.https-badge-warn {
+  background: #f59e0b;
+  color: #000;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.https-camera-banner p {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.85rem;
+  line-height: 1.45;
+}
+.https-camera-banner-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+.https-camera-banner-note {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+.scanner-blocked-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.96) 0%, rgba(6, 9, 14, 0.98) 100%);
+}
+.scanner-blocked-overlay .blocked-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.4rem;
+  filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
+}

@@ -14,6 +14,13 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
     throw new InvalidOperationException("Jwt:Key debe tener al menos 32 caracteres.");
 
+if (jwtKey.Contains("cambiar-en-servidor"))
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("[SEGURIDAD ALERTA BUG-SEC-01] Detectada clave JWT de desarrollo. Configure JWT_SECRET en variables de entorno para producción.");
+    Console.ResetColor();
+}
+
 // Pool de DbContext optimizado para soportar 1000+ conexiones simultáneas sin saturar memoria
 builder.Services.AddDbContextPool<AppDb>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")), poolSize: 128);

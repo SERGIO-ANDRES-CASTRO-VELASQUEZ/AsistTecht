@@ -43,6 +43,20 @@ export class ApiService {
     return this.http.get<Estudiante[]>(`/api/estudiantes${params}`);
   }
 
+  // BUG-DAT-04: Soporte frontend para consulta paginada de estudiantes
+  estudiantesPaginados(grupoId?: number, pageIndex: number = 1, pageSize: number = 20, busqueda?: string) {
+    let params = `?pageIndex=${pageIndex}&pageSize=${pageSize}`;
+    if (grupoId) params += `&grupoId=${grupoId}`;
+    if (busqueda) params += `&busqueda=${encodeURIComponent(busqueda)}`;
+    return this.http.get<{
+      total: number;
+      pagina: number;
+      tamano: number;
+      totalPaginas: number;
+      items: Estudiante[];
+    }>(`/api/estudiantes${params}`);
+  }
+
   crearEstudiante(body: { nombre: string; documento: string; password: string; grupoId: number }) {
     return this.http.post('/api/estudiantes', body);
   }

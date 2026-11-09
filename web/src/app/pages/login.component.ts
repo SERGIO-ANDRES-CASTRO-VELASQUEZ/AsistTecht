@@ -32,6 +32,7 @@ import { mensajeError } from '../core/errores';
           <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">
             Usuario o Documento de Identidad
             <input
+              type="text"
               [(ngModel)]="usuario"
               name="usuario"
               autocomplete="username"
@@ -112,6 +113,7 @@ import { mensajeError } from '../core/errores';
               <label style="font-size: 0.82rem; font-weight: 600;">
                 {{ rolRecuperar === 'Profesor' ? 'Cédula de Ciudadanía del Docente' : 'Documento de Identidad o Usuario' }}
                 <input
+                  type="text"
                   [(ngModel)]="docRecuperar"
                   name="docRecuperar"
                   required

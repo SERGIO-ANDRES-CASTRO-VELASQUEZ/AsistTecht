@@ -16,7 +16,11 @@ public class EstudiantesController : ControllerBase
     public EstudiantesController(AppDb db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Listar([FromQuery] int? grupoId)
+    public async Task<IActionResult> Listar(
+        [FromQuery] int? grupoId,
+        [FromQuery] int? pageIndex,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? busqueda)
     {
         IQueryable<Estudiante> query = _db.Estudiantes.AsQueryable();
 
@@ -30,7 +34,13 @@ public class EstudiantesController : ControllerBase
         if (grupoId is not null)
             query = query.Where(e => e.GrupoId == grupoId);
 
-        var lista = await query
+        var busq = (busqueda ?? "").Trim().ToLower();
+        if (!string.IsNullOrEmpty(busq))
+        {
+            query = query.Where(e => e.Nombre.ToLower().Contains(busq) || e.Documento.Contains(busq));
+        }
+
+        var projection = query
             .OrderBy(e => e.Nombre)
             .Select(e => new
             {
@@ -44,8 +54,30 @@ public class EstudiantesController : ControllerBase
                 tieneFoto = e.Foto != null,
                 tieneRostro = e.Rostros.Any(r => r.Pose == "frente"),
                 carnet = !string.IsNullOrEmpty(e.QrToken)
-            })
-            .ToListAsync();
+            });
+
+        // BUG-DAT-04: Soporte de paginación server-side escalable para más de 1,000 estudiantes
+        if (pageIndex.HasValue || pageSize.HasValue)
+        {
+            var total = await query.CountAsync();
+            var pIndex = Math.Max(1, pageIndex ?? 1);
+            var pSize = Math.Clamp(pageSize ?? 20, 1, 100);
+            var items = await projection
+                .Skip((pIndex - 1) * pSize)
+                .Take(pSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                total,
+                pagina = pIndex,
+                tamano = pSize,
+                totalPaginas = (int)Math.Ceiling(total / (double)pSize),
+                items
+            });
+        }
+
+        var lista = await projection.ToListAsync();
         return Ok(lista);
     }
 

@@ -20,7 +20,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: Host=db;Port=5432;Database=asisqr;Username=asisqr;Password=asisqr
-      Jwt__Key: AsisQR-clave-local-cambiar-en-servidor-2026
+      Jwt__Key: ${JWT_SECRET:-AsisQR-clave-local-cambiar-en-servidor-2026}
       Jwt__Issuer: AsisQR
       Jwt__Audience: AsisQR
     depends_on:
