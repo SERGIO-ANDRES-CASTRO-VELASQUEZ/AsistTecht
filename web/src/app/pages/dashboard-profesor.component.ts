@@ -105,7 +105,7 @@ import { mensajeError } from '../core/errores';
         </div>
 
         <!-- Accesos Directos Rápidos -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; margin-bottom: 1.75rem;">
+        <div class="quick-access-grid">
           <a routerLink="/profesor/planilla" class="card card-interactiva" style="text-decoration: none; padding: 1.15rem; display: flex; align-items: center; gap: 0.85rem;">
             <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;">
               📝
@@ -329,7 +329,7 @@ import { mensajeError } from '../core/errores';
             </button>
 
             <!-- Selector de Grupo Asignado -->
-            <div style="min-width: 8.5rem;">
+            <div class="ai-filter-select-wrap">
               <select [ngModel]="filtroFallasGrupo()" (ngModelChange)="filtroFallasGrupo.set($event)"
                 style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-pill); border: 1.5px solid var(--border); background: var(--bg-surface-solid); width: 100%; color: var(--text-primary); cursor: pointer;">
                 <option value="todos">🏫 Todos mis grupos</option>
@@ -340,7 +340,7 @@ import { mensajeError } from '../core/errores';
             </div>
 
             <!-- Buscador por Texto -->
-            <div style="margin-left: auto; max-width: 16rem; width: 100%;">
+            <div class="ai-filter-search-wrap">
               <input type="text" [ngModel]="busquedaFallas()" (ngModelChange)="busquedaFallas.set($event)" placeholder="🔍 Buscar alumno o acudiente..."
                 style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-pill); border: 1.5px solid var(--border); background: var(--bg-surface-solid); width: 100%; box-sizing: border-box; color: var(--text-primary);" />
             </div>
@@ -415,9 +415,14 @@ import { mensajeError } from '../core/errores';
                       <div>
                         <span style="font-size: 0.8rem; display: block; font-weight: 600;">{{ est.acudienteNombre }}</span>
                         @if (est.acudienteTelefono && est.acudienteTelefono !== 'Sin registro') {
-                          <a [href]="'tel:' + est.acudienteTelefono" style="font-size: 0.74rem; color: var(--primary); text-decoration: none;">
-                            📞 {{ est.acudienteTelefono }}
-                          </a>
+                          <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+                            <a [href]="'tel:' + limpiarTelefono(est.acudienteTelefono)" style="font-size: 0.74rem; color: var(--primary); text-decoration: none; font-weight: 600;" title="Llamar directamente">
+                              📞 {{ est.acudienteTelefono }}
+                            </a>
+                            <a [href]="whatsappUrl(est.acudienteTelefono, est.nombre, est.totalFallas)" target="_blank" rel="noopener noreferrer" class="badge badge-verde" style="font-size: 0.68rem; text-decoration: none; padding: 0.15rem 0.45rem; cursor: pointer;" title="Enviar notificación preventiva por WhatsApp">
+                              💬 WhatsApp
+                            </a>
+                          </div>
                         } @else {
                           <span style="font-size: 0.74rem; color: var(--text-muted);">Sin teléfono</span>
                         }
@@ -500,14 +505,19 @@ import { mensajeError } from '../core/errores';
                 </div>
 
                 <div class="mobile-falla-acudiente">
-                  <div>
+                  <div style="min-width: 0; flex: 1;">
                     <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">Acudiente:</span>
-                    <strong style="color: var(--text-primary);">{{ est.acudienteNombre }}</strong>
+                    <strong style="color: var(--text-primary); font-size: 0.84rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ est.acudienteNombre }}</strong>
                   </div>
                   @if (est.acudienteTelefono && est.acudienteTelefono !== 'Sin registro') {
-                    <a [href]="'tel:' + est.acudienteTelefono" class="btn-secundario" style="font-size: 0.75rem; padding: 0.3rem 0.65rem; border-radius: var(--radius-pill); text-decoration: none;">
-                      📞 Llamar
-                    </a>
+                    <div style="display: flex; gap: 0.35rem; flex-shrink: 0;">
+                      <a [href]="'tel:' + limpiarTelefono(est.acudienteTelefono)" class="btn-secundario btn-tel-sm" title="Llamar directamente">
+                        📞 Llamar
+                      </a>
+                      <a [href]="whatsappUrl(est.acudienteTelefono, est.nombre, est.totalFallas)" target="_blank" rel="noopener noreferrer" class="btn-whatsapp-sm" title="Contactar por WhatsApp">
+                        💬 WhatsApp
+                      </a>
+                    </div>
                   }
                 </div>
 
@@ -560,7 +570,7 @@ import { mensajeError } from '../core/errores';
               <span style="color: var(--grade-alto);">🔵</span> Medio ({{ contarNivel('Medio') }})
             </button>
 
-            <div style="margin-left: auto; max-width: 17rem; width: 100%;">
+            <div class="ai-filter-search-wrap">
               <input type="text" [ngModel]="busquedaTexto()" (ngModelChange)="busquedaTexto.set($event)" placeholder="🔍 Buscar alumno o grupo..."
                 style="padding: 0.45rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-pill); border: 1.5px solid var(--border); background: var(--bg-surface-solid); width: 100%; box-sizing: border-box; color: var(--text-primary);" />
             </div>
@@ -835,5 +845,20 @@ export class DashboardProfesorComponent implements OnInit {
     if (tipo === 'Atencion') return '⚠️ Tipo I · Llamado de Atención';
     if (tipo === 'FaltaLeve') return '🟠 Tipo II · Falta Disciplinaria';
     return '🔴 Tipo III · Falta Gravísima';
+  }
+
+  limpiarTelefono(tel: string | null | undefined): string {
+    if (!tel) return '';
+    return tel.replace(/\D/g, '');
+  }
+
+  whatsappUrl(tel: string | null | undefined, nombreEstudiante: string, fallas: number): string {
+    const numLimpio = this.limpiarTelefono(tel);
+    if (!numLimpio) return '#';
+    const numeroCompleto = numLimpio.startsWith('57') ? numLimpio : `57${numLimpio}`;
+    const mensaje = encodeURIComponent(
+      `Estimado(a) acudiente de ${nombreEstudiante}: Le escribe su docente del Gimnasio José Eustasio Rivera para informarle que el estudiante registra ${fallas} inasistencia(s) en nuestras clases. Solicitamos justificar la ausencia y coordinar la entrega de actividades escolares pendientes. Muchas gracias.`
+    );
+    return `https://wa.me/${numeroCompleto}?text=${mensaje}`;
   }
 }

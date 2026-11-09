@@ -2,7 +2,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json ./
 RUN npm install
-ENV APP_BUILD_TIME=20261105_mobile_charts
+ENV APP_BUILD_TIME=20261109_dashboard_responsive
 COPY . .
 RUN apk add --no-cache curl \
     && mkdir -p public/models \
@@ -21,7 +21,7 @@ RUN apk add --no-cache curl \
     && npx ng build --configuration=production
 
 FROM nginx:1.27-alpine
-ARG BUILD_ID=20261105_1
+ARG BUILD_ID=20261109_dashboard_responsive
 ENV BUILD_ID=${BUILD_ID}
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/asisqr/browser /usr/share/nginx/html
