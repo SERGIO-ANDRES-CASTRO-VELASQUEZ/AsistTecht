@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -10,76 +10,165 @@ import { mensajeError } from '../core/errores';
   selector: 'app-login',
   imports: [FormsModule, CommonModule],
   template: `
-    <main class="login" style="padding: 1.5rem 1rem; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-      <section class="card login-card" style="border-radius: 24px; box-shadow: var(--shadow-lg); width: 100%; max-width: 28rem; padding: 2.2rem 1.8rem; margin: 0 auto;">
-        <!-- Logo Institucional -->
-        <div style="text-align: center; margin-bottom: 1.5rem;">
-          <div style="width: 56px; height: 56px; border-radius: 18px; background: linear-gradient(135deg, var(--primary), #0a523e); color: white; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; box-shadow: 0 8px 24px var(--primary-glow); margin-bottom: 0.65rem;">
-            GIR
-          </div>
-          <h1 style="font-size: 1.55rem; margin-bottom: 0.25rem; font-family: var(--font-display); font-weight: 700;">Gimnasio José Eustasio Rivera</h1>
-          <p style="font-size: 0.85rem; margin: 0; color: var(--text-secondary);">Sistema Institucional de Calificaciones y Asistencia</p>
+    <main class="login-page-container">
+      <!-- Fondo de Pantalla Inmersivo: Fotografía Educativa + Desenfoque (Blur) + Degradado Esmeralda -->
+      <div class="login-bg-media" aria-hidden="true"></div>
+      <div class="login-bg-overlay" aria-hidden="true"></div>
+
+      <!-- Orbes de Luz Ambiental Flotantes (Profundidad Visual) -->
+      <div class="login-orb login-orb-1" aria-hidden="true"></div>
+      <div class="login-orb login-orb-2" aria-hidden="true"></div>
+
+      <!-- Tarjeta Glassmorphic Flotante del Login -->
+      <section class="login-glass-card">
+        <!-- Logo Institucional y Nombre del Colegio -->
+        <div class="login-brand-header">
+          <div class="login-brand-icon">GIR</div>
+          <h1 class="login-school-title">Gimnasio José Eustasio Rivera</h1>
+          <p class="login-school-sub">
+            <span class="pulsing-live-dot" style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; margin-right: 0.25rem;"></span>
+            <span>AsisTecht · Portal Institucional Único</span>
+          </p>
+        </div>
+
+        <!-- Selector Interactivo de Rol (Guía Visual Dinámica) -->
+        <div class="login-role-pills" role="tablist" aria-label="Selección de perfil de acceso">
+          <button
+            type="button"
+            class="login-role-pill-btn"
+            [class.activo]="rolOrientacion() === 'Estudiante'"
+            (click)="seleccionarRol('Estudiante')"
+            title="Acceso para alumnas y alumnos con documento de identidad"
+          >
+            <span style="font-size: 1.15rem;">🎓</span>
+            <span>Alumnos</span>
+          </button>
+
+          <button
+            type="button"
+            class="login-role-pill-btn"
+            [class.activo]="rolOrientacion() === 'Profesor'"
+            (click)="seleccionarRol('Profesor')"
+            title="Acceso para docentes con cédula de ciudadanía"
+          >
+            <span style="font-size: 1.15rem;">👨‍🏫</span>
+            <span>Docentes</span>
+          </button>
+
+          <button
+            type="button"
+            class="login-role-pill-btn"
+            [class.activo]="rolOrientacion() === 'Director'"
+            (click)="seleccionarRol('Director')"
+            title="Acceso para directivos y secretaría académica"
+          >
+            <span style="font-size: 1.15rem;">🏛️</span>
+            <span>Dirección</span>
+          </button>
+
+          <button
+            type="button"
+            class="login-role-pill-btn"
+            [class.activo]="rolOrientacion() === 'Acudiente'"
+            (click)="seleccionarRol('Acudiente')"
+            title="Acceso para padres de familia y acudientes"
+          >
+            <span style="font-size: 1.15rem;">👨‍👩‍👧</span>
+            <span>Familias</span>
+          </button>
         </div>
 
         @if (mensajeSolicitudExito()) {
-          <div class="aviso exito" style="margin-bottom: 1rem; font-size: 0.85rem;">
+          <div class="aviso exito" style="margin-bottom: 1rem; font-size: 0.85rem; animation: fadeIn 0.3s ease;">
             {{ mensajeSolicitudExito() }}
           </div>
         }
 
-        <!-- Formulario de Acceso Unificado (ERR-004) -->
-        <form (ngSubmit)="entrar()" style="display: grid; gap: 1rem;">
-          <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">
-            Usuario o Documento de Identidad
-            <input
-              type="text"
-              [(ngModel)]="usuario"
-              name="usuario"
-              autocomplete="username"
-              required
-              placeholder="Ingresa tu cédula, documento o usuario..."
-              style="width: 100%; margin-top: 0.35rem;"
-            />
+        <!-- Formulario de Acceso Unificado -->
+        <form (ngSubmit)="entrar()" style="display: grid; gap: 1.05rem;">
+          <label style="font-weight: 600; font-size: 0.84rem; color: var(--text-primary); display: grid; gap: 0.35rem;">
+            <span>{{ labelUsuario() }}</span>
+            <div class="input-field-group">
+              <span class="input-field-icon">👤</span>
+              <input
+                type="text"
+                class="input-field-input"
+                [(ngModel)]="usuario"
+                name="usuario"
+                autocomplete="username"
+                required
+                [placeholder]="placeholderUsuario()"
+                [attr.inputmode]="rolOrientacion() === 'Profesor' || rolOrientacion() === 'Estudiante' ? 'numeric' : 'text'"
+              />
+            </div>
           </label>
 
-          <label style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">
-            Contraseña Institucional
-            <input
-              [(ngModel)]="password"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              required
-              placeholder="••••••••"
-              style="width: 100%; margin-top: 0.35rem;"
-            />
+          <label style="font-weight: 600; font-size: 0.84rem; color: var(--text-primary); display: grid; gap: 0.35rem;">
+            <span>Contraseña Institucional</span>
+            <div class="input-field-group">
+              <span class="input-field-icon">🔒</span>
+              <input
+                [(ngModel)]="password"
+                name="password"
+                [type]="mostrarPassword() ? 'text' : 'password'"
+                class="input-field-input"
+                autocomplete="current-password"
+                required
+                placeholder="••••••••••••"
+              />
+              <button
+                type="button"
+                class="btn-toggle-eye"
+                (click)="mostrarPassword.set(!mostrarPassword())"
+                [title]="mostrarPassword() ? 'Ocultar contraseña' : 'Ver contraseña'"
+              >
+                {{ mostrarPassword() ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </label>
 
           <!-- Enlace para solicitar restablecimiento al Admin -->
-          <div style="text-align: right; margin-top: -0.25rem;">
-            <button type="button" (click)="abrirModalRecuperar()" style="background: none; border: none; color: var(--primary); font-size: 0.78rem; cursor: pointer; text-decoration: underline; font-weight: 600; padding: 0;">
-              🔑 ¿Olvidaste tu contraseña? Solicitar al Administrador
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: -0.3rem;">
+            <small style="color: var(--text-muted); font-size: 0.74rem;">
+              Año Lectivo 2026
+            </small>
+            <button
+              type="button"
+              (click)="abrirModalRecuperar()"
+              style="background: none; border: none; color: var(--primary); font-size: 0.78rem; cursor: pointer; text-decoration: underline; font-weight: 600; padding: 0.2rem 0; transition: color 0.2s;"
+            >
+              🔑 ¿Olvidaste tu contraseña?
             </button>
           </div>
 
-          @if (error()) { <p class="aviso error">{{ error() }}</p> }
+          @if (error()) {
+            <p class="aviso error" style="margin: 0; animation: fadeIn 0.25s ease;">{{ error() }}</p>
+          }
 
-          <button class="btn-principal" type="submit" [disabled]="cargando()" style="width: 100%; padding: 0.8rem; font-size: 0.95rem; justify-content: center; margin-top: 0.4rem; font-weight: 600;">
-            {{ cargando() ? 'Verificando credenciales…' : 'Ingresar al Portal Institucional' }}
+          <button
+            class="btn-principal btn-login-submit"
+            type="submit"
+            [disabled]="cargando()"
+          >
+            @if (cargando()) {
+              <span>⏳ Verificando credenciales…</span>
+            } @else {
+              <span>✨ Ingresar al Portal Institucional</span>
+            }
           </button>
         </form>
 
         <!-- Sección de Descarga Directa de APK Móvil -->
-        <div style="margin-top: 1.5rem; background: linear-gradient(135deg, rgba(14, 107, 82, 0.08), rgba(37, 99, 235, 0.06)); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.9rem 1rem; text-align: center;">
+        <div class="login-apk-banner">
           <div style="display: flex; align-items: center; justify-content: center; gap: 0.45rem; margin-bottom: 0.35rem;">
             <span style="font-size: 1.25rem;">📱</span>
             <strong style="font-size: 0.88rem; color: var(--text-primary);">¿Usas celular Android?</strong>
           </div>
-          <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 0.65rem;">
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 0.65rem; line-height: 1.35;">
             Descarga nuestra aplicación móvil oficial para pase de lista con cámara y notificaciones en tiempo real.
           </p>
 
-          <a href="/downloads/asisttecht-movil.apk" download="asisttecht-movil.apk" class="btn-principal" style="width: 100%; justify-content: center; font-size: 0.82rem; padding: 0.55rem 0.85rem; text-decoration: none;">
+          <a href="/downloads/asisttecht-movil.apk" download="asisttecht-movil.apk" class="btn-principal login-apk-btn">
             <span>📥</span> Descargar App Oficial (.APK)
           </a>
         </div>
@@ -88,7 +177,7 @@ import { mensajeError } from '../core/errores';
       <!-- Modal de Solicitud de Restablecimiento de Clave al Administrador -->
       @if (mostrarModalRecuperar()) {
         <div class="modal-backdrop" (click)="cerrarModalRecuperar()">
-          <div class="card" (click)="$event.stopPropagation()" style="max-width: 26rem; width: 92%; margin: 0 auto; box-shadow: var(--shadow-lg);">
+          <div class="card" (click)="$event.stopPropagation()" style="max-width: 27rem; width: 92%; margin: 0 auto; box-shadow: var(--shadow-lg); border-radius: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <h2 style="font-size: 1.2rem; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
                 <span>🔑</span> Solicitar Contraseña al Admin
@@ -96,11 +185,11 @@ import { mensajeError } from '../core/errores';
               <button type="button" class="btn-cerrar-drawer" style="width: 28px; height: 28px;" (click)="cerrarModalRecuperar()">✕</button>
             </div>
 
-            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.45;">
               Si perdiste o no recuerdas tu contraseña, envía tu documento. El <strong>Administrador Central</strong> recibirá una notificación prioritaria y te asignará una nueva clave temporal para que ingreses y la actualices una única vez.
             </p>
 
-            <form (ngSubmit)="enviarSolicitudClave()" style="display: grid; gap: 0.75rem;">
+            <form (ngSubmit)="enviarSolicitudClave()" style="display: grid; gap: 0.85rem;">
               <label style="font-size: 0.82rem; font-weight: 600;">
                 Tipo de Usuario / Rol
                 <select [(ngModel)]="rolRecuperar" name="rolRecuperar" style="width: 100%; margin-top: 0.3rem;">
@@ -152,6 +241,38 @@ export class LoginComponent {
   password = '';
   error = signal('');
   cargando = signal(false);
+  mostrarPassword = signal(false);
+  rolOrientacion = signal<'Todos' | 'Estudiante' | 'Profesor' | 'Director' | 'Acudiente'>('Todos');
+
+  placeholderUsuario = computed(() => {
+    switch (this.rolOrientacion()) {
+      case 'Estudiante':
+        return 'Ingresa documento de identidad (TI o CC)...';
+      case 'Profesor':
+        return 'Ingresa tu número de cédula...';
+      case 'Director':
+        return 'Ingresa usuario (ej: director)...';
+      case 'Acudiente':
+        return 'Ingresa documento del acudiente...';
+      default:
+        return 'Ingresa tu cédula, documento o usuario...';
+    }
+  });
+
+  labelUsuario = computed(() => {
+    switch (this.rolOrientacion()) {
+      case 'Estudiante':
+        return 'Documento de Identidad del Alumno';
+      case 'Profesor':
+        return 'Cédula de Ciudadanía del Docente';
+      case 'Director':
+        return 'Usuario Directivo';
+      case 'Acudiente':
+        return 'Documento del Acudiente / Familia';
+      default:
+        return 'Usuario o Documento de Identidad';
+    }
+  });
 
   // Modal para solicitar clave perdida al Admin
   mostrarModalRecuperar = signal(false);
@@ -173,6 +294,14 @@ export class LoginComponent {
     else if (sesion?.rol === 'Profesor') void this.router.navigateByUrl('/profesor');
     else if (sesion?.rol === 'Estudiante') void this.router.navigateByUrl('/estudiante');
     else if (sesion?.rol === 'Acudiente') void this.router.navigateByUrl('/acudiente');
+  }
+
+  seleccionarRol(rol: 'Estudiante' | 'Profesor' | 'Director' | 'Acudiente'): void {
+    if (this.rolOrientacion() === rol) {
+      this.rolOrientacion.set('Todos');
+    } else {
+      this.rolOrientacion.set(rol);
+    }
   }
 
   entrar(): void {
