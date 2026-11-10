@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../core/api.service';
 import { Estudiante, Grupo, ResumenAdmin, SolicitudClave } from '../core/models';
 import { mensajeError } from '../core/errores';
+import { TerminosCheckComponent } from './terminos-check.component';
 
 interface ToastNotif {
   id: number;
@@ -15,7 +16,7 @@ interface ToastNotif {
 
 @Component({
   selector: 'app-admin',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TerminosCheckComponent],
   template: `
     <section class="pagina">
       <!-- Contenedor Flotante de Notificaciones Pop-up (Toasts) -->
@@ -839,8 +840,10 @@ interface ToastNotif {
                 }
               </label>
 
+              <app-terminos-check [(aceptado)]="terminosEstudiante" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal" [disabled]="guardandoEstudiante()">
+                <button type="submit" class="btn-principal" [disabled]="guardandoEstudiante() || !terminosEstudiante">
                   {{ guardandoEstudiante() ? 'Guardando…' : '✔ Guardar Matrícula con Clave Dinámica' }}
                 </button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormEstudiante.set(false)">Cancelar</button>
@@ -1025,8 +1028,10 @@ interface ToastNotif {
                 }
               </label>
 
+              <app-terminos-check [(aceptado)]="terminosDocente" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal">Crear Docente con Cédula y Clave Dinámica</button>
+                <button type="submit" class="btn-principal" [disabled]="!terminosDocente">Crear Docente con Cédula y Clave Dinámica</button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormDocente.set(false)">Cancelar</button>
               </div>
             </form>
@@ -1227,8 +1232,10 @@ interface ToastNotif {
                 </div>
               </div>
 
+              <app-terminos-check [(aceptado)]="terminosAcudiente" />
+
               <div style="grid-column: 1 / -1; display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                <button type="submit" class="btn-principal">Guardar Acudiente y Amarrar Hijos</button>
+                <button type="submit" class="btn-principal" [disabled]="!terminosAcudiente">Guardar Acudiente y Amarrar Hijos</button>
                 <button type="button" class="btn-secundario" (click)="mostrarFormAcudiente.set(false)">Cancelar</button>
               </div>
             </form>
@@ -1466,6 +1473,9 @@ export class AdminComponent implements OnInit {
   estNombre = '';
   estDocumento = '';
   estGrupoId = 0;
+  terminosEstudiante = false;
+  terminosDocente = false;
+  terminosAcudiente = false;
 
   // Modal para crear grupo rápido
   mostrarModalNuevoGrupo = signal(false);
@@ -1860,6 +1870,7 @@ export class AdminComponent implements OnInit {
         );
         this.estNombre = '';
         this.estDocumento = '';
+        this.terminosEstudiante = false;
         this.erroresEstudiante = { nombre: '', documento: '', grupo: '' };
         this.mostrarFormEstudiante.set(false);
         this.cargarEstudiantes();
@@ -1971,6 +1982,7 @@ export class AdminComponent implements OnInit {
         this.mostrarToast('exito', 'Docente Creado', `Profesor ${creado.nombre} registrado con éxito con Cédula ${creado.usuario}.`);
         this.docNombre = '';
         this.docUsuario = '';
+        this.terminosDocente = false;
         this.erroresDocente = { nombre: '', cedula: '' };
         this.mostrarFormDocente.set(false);
         this.api.adminProfesores().subscribe({ next: p => this.profesores.set(p) });
@@ -2052,6 +2064,7 @@ export class AdminComponent implements OnInit {
         this.acudDocumento = '';
         this.acudTelefono = '';
         this.acudCorreo = '';
+        this.terminosAcudiente = false;
         this.hijosSeleccionados.clear();
         this.mostrarFormAcudiente.set(false);
         this.api.adminAcudientes().subscribe({ next: a => this.acudientes.set(a) });

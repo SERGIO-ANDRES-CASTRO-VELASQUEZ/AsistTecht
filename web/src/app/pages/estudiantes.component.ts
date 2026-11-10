@@ -6,10 +6,11 @@ import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { Estudiante, Grupo } from '../core/models';
 import { mensajeError } from '../core/errores';
+import { TerminosCheckComponent } from './terminos-check.component';
 
 @Component({
   selector: 'app-estudiantes',
-  imports: [FormsModule, RouterLink, CommonModule],
+  imports: [FormsModule, RouterLink, CommonModule, TerminosCheckComponent],
   template: `
     <section class="pagina">
       <div class="entre" style="margin-bottom: 1.25rem;">
@@ -99,8 +100,10 @@ import { mensajeError } from '../core/errores';
               </label>
             </div>
 
+            <app-terminos-check [(aceptado)]="terminosAceptados" />
+
             <div class="acciones" style="margin-top: 1rem;">
-              <button class="btn-principal" type="submit">
+              <button class="btn-principal" type="submit" [disabled]="!terminosAceptados">
                 <span>✔</span> Guardar Matrícula
               </button>
               <button type="button" class="btn-secundario" (click)="mostrarRegistro.set(false)">
@@ -257,6 +260,7 @@ export class EstudiantesComponent implements OnInit {
   grupos = signal<Grupo[]>([]);
   estudiantes = signal<Estudiante[]>([]);
   mostrarRegistro = signal(false);
+  terminosAceptados = false;
   aviso = signal('');
   error = signal('');
 
@@ -341,6 +345,7 @@ export class EstudiantesComponent implements OnInit {
         this.nombre = '';
         this.documento = '';
         this.password = '';
+        this.terminosAceptados = false;
         this.mostrarRegistro.set(false);
         this.cargar();
 

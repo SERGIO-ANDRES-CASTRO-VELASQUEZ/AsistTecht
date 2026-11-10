@@ -34,6 +34,30 @@ const POSES = [
       <div class="visor" style="position: relative; max-width: 520px; margin: 0 auto 1rem; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); border: 2px solid var(--border); background: #000;">
         <video #video autoplay muted playsinline style="width: 100%; display: block; min-height: 280px;"></video>
         
+        <!-- Overlay si el celular bloqueó la cámara por HTTP -->
+        @if (bloqueoHttps()) {
+          <div class="scanner-blocked-overlay">
+            <div class="blocked-icon">🔒</div>
+            <h3 style="color: #fff; font-size: 1rem; margin: 0 0 0.4rem; font-weight: 700;">
+              Cámara Bloqueada por HTTP Móvil
+            </h3>
+            <p style="color: rgba(255,255,255,0.88); font-size: 0.8rem; margin: 0 0 1rem; max-width: 20rem; line-height: 1.4;">
+              El navegador móvil requiere conexión <strong>HTTPS (puerto 8443)</strong> para permitir el acceso a la cámara.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 18rem;">
+              <button type="button" class="btn-principal" (click)="redirigirAHttps()" style="justify-content: center; padding: 0.65rem 1rem;">
+                ⚡ Abrir en HTTPS Seguro (8443)
+              </button>
+              <a href="/downloads/asisttecht-movil.apk" download class="btn-secundario" style="justify-content: center; padding: 0.55rem 1rem; background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.3); text-decoration: none;">
+                📲 Usar App Móvil APK
+              </a>
+            </div>
+            <div style="margin-top: 0.75rem; font-size: 0.72rem; color: #94a3b8; max-width: 18rem;">
+              💡 En la advertencia toca <em>Configuración avanzada</em> &rarr; <em>Continuar</em>.
+            </div>
+          </div>
+        }
+        
         <!-- Indicador de Cámara Activa -->
         <div style="position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem; color: #fff; display: flex; align-items: center; gap: 0.4rem; z-index: 2;">
           <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
@@ -102,7 +126,30 @@ const POSES = [
         </div>
       </div>
 
-      @if (error()) {
+      @if (bloqueoHttps()) {
+        <div class="https-camera-banner" style="max-width: 520px; margin: 0 auto 1.25rem;">
+          <div class="https-camera-banner-header">
+            <span class="https-badge-warn">🔒 HTTPS REQUERIDO</span>
+            <strong>Cámara bloqueada por el navegador móvil</strong>
+          </div>
+          <p>
+            En celulares, la biometría requiere conexión segura <strong>HTTPS (puerto 8443)</strong> o usar la App Oficial.
+          </p>
+          <div class="https-camera-banner-actions">
+            <button type="button" class="btn-principal" (click)="redirigirAHttps()">
+              ⚡ Cambiar a HTTPS Seguro (Puerto 8443)
+            </button>
+            <a href="/downloads/asisttecht-movil.apk" download class="btn-secundario" style="text-decoration: none;">
+              📲 Descargar App Android (.APK)
+            </a>
+          </div>
+          <div class="https-camera-banner-note">
+            💡 <em>Al ingresar, toca <strong>Configuración avanzada</strong> &rarr; <strong>Continuar a {{ hostActual }}</strong> para habilitar la cámara.</em>
+          </div>
+        </div>
+      }
+
+      @if (error() && !bloqueoHttps()) {
         <div class="aviso error" style="max-width: 520px; margin: 0 auto 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
           <span>{{ error() }}</span>
           <button
@@ -142,6 +189,19 @@ export class RostroComponent implements OnInit, AfterViewChecked, OnDestroy {
   tomadas = signal<string[]>([]);
   indicacion = signal('Ubica tu rostro frente al lente de la cámara.');
   error = signal('');
+  bloqueoHttps = signal(false);
+
+  redirigirAHttps(): void {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    const path = window.location.pathname;
+    const search = window.location.search;
+    window.location.href = `https://${host}:8443${path}${search}`;
+  }
+
+  get hostActual(): string {
+    return typeof window !== 'undefined' ? window.location.hostname : 'servidor';
+  }
   aviso = signal('');
   ocupado = signal(false);
 
@@ -369,17 +429,35 @@ export class RostroComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   private async encender(): Promise<void> {
     const video = this.video?.nativeElement;
-    if (!video || !navigator.mediaDevices?.getUserMedia) {
-      this.error.set('Este navegador no entregó la cámara.');
+    const faltaMedias = !navigator.mediaDevices?.getUserMedia;
+    const esInseguro = typeof window !== 'undefined' &&
+      window.location.protocol !== 'https:' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1';
+
+    if (!video || faltaMedias || esInseguro) {
+      if (faltaMedias || esInseguro) {
+        this.bloqueoHttps.set(true);
+        this.error.set('La cámara requiere conexión HTTPS en celular. Presiona el botón verde para pasar al puerto 8443.');
+      } else {
+        this.error.set('Este navegador no entregó la cámara.');
+      }
       return;
     }
+
+    this.bloqueoHttps.set(false);
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
       });
     } catch {
-      this.error.set('No se pudo abrir la cámara. Revisa el permiso del navegador.');
+      if (esInseguro || faltaMedias) {
+        this.bloqueoHttps.set(true);
+        this.error.set('El navegador del celular bloqueó la cámara por protocolo HTTP. Toca arriba para abrir en HTTPS (8443).');
+      } else {
+        this.error.set('No se pudo abrir la cámara. Revisa el permiso del navegador.');
+      }
       return;
     }
     video.srcObject = this.stream;

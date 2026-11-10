@@ -4,11 +4,12 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from '../core/api.service';
 import { HorarioClaseItem } from '../core/models';
 import { mensajeError } from '../core/errores';
+import { TerminosCheckComponent } from './terminos-check.component';
 
 @Component({
   selector: 'app-director',
   standalone: true,
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, TerminosCheckComponent],
   template: `
     <section class="pagina">
       <!-- Encabezado Directivo -->
@@ -413,8 +414,10 @@ import { mensajeError } from '../core/errores';
               </small>
             </label>
 
+            <app-terminos-check [(aceptado)]="matrTerminosAceptados" />
+
             <div style="display: flex; gap: 0.65rem; justify-content: flex-end; margin-top: 0.75rem;">
-              <button type="submit" class="btn-principal" [disabled]="matriculando()" style="padding: 0.75rem 1.5rem;">
+              <button type="submit" class="btn-principal" [disabled]="matriculando() || !matrTerminosAceptados" style="padding: 0.75rem 1.5rem;">
                 {{ matriculando() ? 'Matriculando…' : '✔ Matricular y Generar Credenciales' }}
               </button>
             </div>
@@ -651,6 +654,7 @@ export class DirectorComponent implements OnInit {
   matrDocumento = '';
   matrGrupoId = 0;
   matrPassword = '';
+  matrTerminosAceptados = false;
   matriculando = signal(false);
 
   // Modal Clave Dinámica
@@ -827,6 +831,10 @@ export class DirectorComponent implements OnInit {
       this.error.set('Por favor completa el nombre, documento y grado escolar del estudiante.');
       return;
     }
+    if (!this.matrTerminosAceptados) {
+      this.error.set('Debes aceptar los términos y condiciones de tratamiento de datos personales.');
+      return;
+    }
 
     this.matriculando.set(true);
     this.api.matricularEstudianteDirector({
@@ -841,6 +849,7 @@ export class DirectorComponent implements OnInit {
         this.matrDocumento = '';
         this.matrGrupoId = 0;
         this.matrPassword = '';
+        this.matrTerminosAceptados = false;
         this.aviso.set(res.mensaje);
         this.modalClave.set({
           nombre: res.nombre,

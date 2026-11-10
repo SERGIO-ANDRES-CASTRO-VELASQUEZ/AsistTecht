@@ -144,7 +144,30 @@ interface CaraEnPantalla {
           </div>
         }
 
-        @if (error()) { <div class="aviso error" style="margin-bottom: 1rem;">{{ error() }}</div> }
+        @if (bloqueoHttps()) {
+          <div class="https-camera-banner">
+            <div class="https-camera-banner-header">
+              <span class="https-badge-warn">🔒 HTTPS REQUERIDO</span>
+              <strong>Cámara bloqueada por el navegador móvil (Conexión HTTP)</strong>
+            </div>
+            <p>
+              Los navegadores en celulares (Chrome, Safari) exigen conexión cifrada <strong>HTTPS (puerto 8443)</strong> para permitir el acceso a la cámara.
+            </p>
+            <div class="https-camera-banner-actions">
+              <button type="button" class="btn-principal" (click)="redirigirAHttps()">
+                ⚡ Cambiar a HTTPS Seguro (Puerto 8443)
+              </button>
+              <a href="/downloads/asisttecht-movil.apk" download class="btn-secundario" style="text-decoration: none;">
+                📲 Descargar App Android (.APK)
+              </a>
+            </div>
+            <div class="https-camera-banner-note">
+              💡 <em>En la pantalla de aviso del celular, toca <strong>Configuración avanzada</strong> y luego <strong>Continuar a {{ hostActual }}</strong> para habilitar la cámara.</em>
+            </div>
+          </div>
+        }
+
+        @if (error() && !bloqueoHttps()) { <div class="aviso error" style="margin-bottom: 1rem;">{{ error() }}</div> }
 
         <!-- Grid de la Escena: Visor Cyberpunk a la izquierda + Planilla a la derecha -->
         <div class="escena-scanner-grid">
@@ -152,6 +175,30 @@ interface CaraEnPantalla {
           <div class="scanner-visor-wrapper">
             <div class="scanner-visor-box" [class.detected-glow]="carnetDetectado()">
               <video #video autoplay muted playsinline class="scanner-video-element"></video>
+
+              <!-- Overlay si el celular bloqueó la cámara por HTTP -->
+              @if (bloqueoHttps()) {
+                <div class="scanner-blocked-overlay">
+                  <div class="blocked-icon">🔒</div>
+                  <h3 style="color: #fff; font-size: 1.05rem; margin: 0 0 0.4rem; font-weight: 700;">
+                    Cámara Bloqueada por HTTP Móvil
+                  </h3>
+                  <p style="color: rgba(255,255,255,0.88); font-size: 0.82rem; margin: 0 0 1rem; max-width: 22rem; line-height: 1.45;">
+                    El celular requiere conexión <strong>HTTPS (puerto 8443)</strong> para encender la cámara y escanear carnets.
+                  </p>
+                  <div style="display: flex; flex-direction: column; gap: 0.55rem; width: 100%; max-width: 19rem;">
+                    <button type="button" class="btn-principal" (click)="redirigirAHttps()" style="justify-content: center; padding: 0.7rem 1rem;">
+                      ⚡ Abrir en HTTPS (8443)
+                    </button>
+                    <a href="/downloads/asisttecht-movil.apk" download class="btn-secundario" style="justify-content: center; padding: 0.55rem 1rem; background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.3); text-decoration: none;">
+                      📲 Usar App Android (.APK)
+                    </a>
+                  </div>
+                  <div style="margin-top: 0.85rem; font-size: 0.72rem; color: #94a3b8; max-width: 20rem;">
+                    💡 En la advertencia toca <em>Configuración avanzada</em> &rarr; <em>Continuar</em>.
+                  </div>
+                </div>
+              }
 
               <!-- Destello de escaneo exitoso -->
               @if (flashActivo()) {
@@ -393,6 +440,19 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
   sesion = signal<SesionDetalle | null>(null);
   burbujas = signal<Burbuja[]>([]);
   error = signal('');
+  bloqueoHttps = signal(false);
+
+  redirigirAHttps(): void {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    const path = window.location.pathname;
+    const search = window.location.search;
+    window.location.href = `https://${host}:8443${path}${search}`;
+  }
+
+  get hostActual(): string {
+    return typeof window !== 'undefined' ? window.location.hostname : 'servidor';
+  }
   materiaId = 0;
   grupoId = 0;
 
@@ -592,10 +652,21 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
   private async encender(): Promise<void> {
     const video = this.video?.nativeElement;
     if (!video) return;
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this.error.set('El navegador no entregó la cámara. En el computador usa http://localhost:8080. En celular usa https://IP:8443.');
+
+    // BUG-NET-03: Detección inteligente de contexto no seguro en navegadores móviles (Chrome/Safari)
+    const faltaMedias = !navigator.mediaDevices?.getUserMedia;
+    const esInseguro = typeof window !== 'undefined' &&
+      window.location.protocol !== 'https:' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1';
+
+    if (faltaMedias || esInseguro) {
+      this.bloqueoHttps.set(true);
+      this.error.set('La cámara requiere conexión HTTPS segura en celular. Presiona el botón para pasar al puerto 8443 o usa la APK oficial.');
       return;
     }
+
+    this.bloqueoHttps.set(false);
     this.activo = true;
     const facingMode = this.frente ? 'environment' : 'user';
     try {
@@ -607,7 +678,12 @@ export class ClaseComponent implements OnInit, AfterViewChecked, OnDestroy {
       try {
         this.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
       } catch {
-        this.error.set('No se pudo abrir la cámara. Revisa los permisos del navegador.');
+        if (esInseguro || faltaMedias) {
+          this.bloqueoHttps.set(true);
+          this.error.set('El navegador del celular bloqueó la cámara por protocolo HTTP. Toca abajo para abrir en HTTPS (8443).');
+        } else {
+          this.error.set('No se pudo abrir la cámara. Revisa los permisos del navegador.');
+        }
         return;
       }
     }

@@ -3,10 +3,25 @@
 }
 
 :80 {
+	# BUG-SEC-05: Cabeceras de seguridad HTTP
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+	}
 	reverse_proxy web:80
 }
 
 :443 {
 	tls internal
+	# BUG-SEC-05: Endurecimiento HTTPS, HSTS y política de cámara
+	header {
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+	}
 	reverse_proxy web:80
 }
