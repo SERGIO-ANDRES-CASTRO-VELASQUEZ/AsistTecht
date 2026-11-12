@@ -238,3 +238,4 @@ Desde cualquier equipo cliente en la misma red local (computador o celular):
   * Administrador: `admin` / `Admin2026*`
   * Director: `director` / `AsisTecht2026`
   * Docente: `carlos.restrepo` / `Profesor2026*`
+

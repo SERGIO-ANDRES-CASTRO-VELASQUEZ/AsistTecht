@@ -202,3 +202,4 @@ echo " - AsisTecht HTTPS:    https://$IP_SERVER:8443 (Camara activa)"
 echo " - Copia de seguridad: /var/backups/empresa/backup_latest.tar.gz"
 echo " - Usuarios de prueba: u_ventas (Ventas2026*), u_conta (Conta2026*)"
 echo "======================================================================"
+

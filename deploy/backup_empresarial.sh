@@ -46,3 +46,4 @@ echo "✔ Backup completado con éxito:"
 echo "  Ruta: $ARCHIVO_BACKUP"
 echo "  Enlace rápido: $LATEST"
 echo "=================================================="
+
